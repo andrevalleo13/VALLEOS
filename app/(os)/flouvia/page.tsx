@@ -54,8 +54,8 @@ export default async function FlouviaPage() {
       <div className="page-header">
         <div className="flex items-start justify-between">
           <div>
-            <p className="eyebrow mb-2">SaaS · CRM</p>
-            <h1 className="page-title">Flouvia</h1>
+            <p className="eyebrow mb-2">08 · FLOUVIA</p>
+            <h1 className="page-title">Flouvia.</h1>
           </div>
           <div className="flex gap-2">
             <button className="btn btn-ghost btn-sm"><Plus size={13} /> Cliente</button>

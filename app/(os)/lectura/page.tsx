@@ -34,8 +34,8 @@ export default async function LecturaPage() {
       <div className="page-header">
         <div className="flex items-start justify-between">
           <div>
-            <p className="eyebrow mb-2">Reading list</p>
-            <h1 className="page-title">Lectura</h1>
+            <p className="eyebrow mb-2">11 · LECTURAS</p>
+            <h1 className="page-title">Lectura.</h1>
           </div>
           <button className="btn btn-primary btn-sm"><Plus size={14} /> Agregar</button>
         </div>

@@ -36,8 +36,8 @@ export default function ConfigPage() {
   return (
     <div>
       <div className="page-header">
-        <p className="eyebrow mb-2">Sistema</p>
-        <h1 className="page-title">Configuración</h1>
+        <p className="eyebrow mb-2">SISTEMA · CONFIG</p>
+        <h1 className="page-title">Configuración.</h1>
       </div>
 
       <div className="page-body">

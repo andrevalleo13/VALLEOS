@@ -81,37 +81,32 @@ export default async function CentroPage() {
   ];
 
   return (
-    <div className="page-body">
-      <div className="mb-8">
-        <p className="eyebrow mb-2">Cockpit</p>
-        <h1 className="serif" style={{ fontSize: 36, color: "var(--bone)" }}>Centro de control</h1>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-        {WIDGETS.map((w) => (
-          <Link key={w.href} href={w.href} className="card hover:no-underline group">
-            <div className="flex items-center justify-between mb-3">
-              <w.icon size={18} style={{ color: w.color }} />
-              <ArrowRight size={13} style={{ color: "var(--mute-2)" }} className="group-hover:translate-x-1 transition-transform" />
-            </div>
-            <p style={{ fontFamily: "var(--f-serif)", fontSize: 20, color: "var(--bone)" }}>{w.label}</p>
-            <p className="tick mt-1">{w.stat}</p>
-          </Link>
-        ))}
-      </div>
-
-      {/* Ticker bar */}
-      <div className="ticker mt-8 rounded-xl">
-        {[
-          { label: "HOY", val: new Date().toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" }) },
-          { label: "SHADOW", val: "En línea", cls: "positive" },
-          { label: "SUPABASE", val: "Conectado", cls: "positive" },
-        ].map((t) => (
-          <div key={t.label} className="ticker-item">
-            <span className="ticker-label">{t.label}</span>
-            <span className={`ticker-value ${t.cls ?? ""}`}>{t.val}</span>
+    <div>
+      <div className="page-header">
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+          <div>
+            <p className="eyebrow mb-2">01 · COCKPIT</p>
+            <h1 className="page-title">Centro.</h1>
           </div>
-        ))}
+          <p className="tick" style={{ marginTop: 6, textTransform: "capitalize" }}>
+            {dateLabel}
+          </p>
+        </div>
+      </div>
+
+      <div className="page-body">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+          {WIDGETS.map((w) => (
+            <Link key={w.href} href={w.href} className="card hover:no-underline group" style={{ textDecoration: "none" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <w.icon size={16} style={{ color: w.color }} />
+                <ArrowRight size={12} style={{ color: "var(--mute-2)" }} />
+              </div>
+              <p style={{ fontFamily: "var(--f-serif)", fontSize: 19, color: "var(--bone)", lineHeight: 1.2 }}>{w.label}</p>
+              <p className="tick mt-2">{w.stat}</p>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );

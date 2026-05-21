@@ -59,16 +59,19 @@ export default async function FinanzasPage() {
   return (
     <div>
       <div className="page-header">
-        <div className="flex items-start justify-between">
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div>
-            <p className="eyebrow mb-2">
+            <p className="eyebrow mb-2">03 · DINERO</p>
+            <h1 className="page-title">Finanzas.</h1>
+          </div>
+          <div style={{ textAlign: "right", marginTop: 4 }}>
+            <p className="tick" style={{ textTransform: "capitalize" }}>
               {new Date().toLocaleDateString("es-MX", { month: "long", year: "numeric" })}
             </p>
-            <h1 className="page-title">Finanzas</h1>
+            <button className="btn btn-ghost btn-sm mt-2">
+              <Plus size={13} /> Registrar
+            </button>
           </div>
-          <button className="btn btn-primary btn-sm">
-            <Plus size={14} /> Registrar
-          </button>
         </div>
       </div>
 

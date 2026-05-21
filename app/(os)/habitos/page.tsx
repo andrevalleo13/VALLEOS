@@ -95,14 +95,17 @@ export default function HabitosPage() {
   return (
     <div>
       <div className="page-header">
-        <div className="flex items-start justify-between">
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div>
-            <p className="eyebrow mb-2">Sistema de hábitos</p>
-            <h1 className="page-title">Hábitos</h1>
+            <p className="eyebrow mb-2">06 · SISTEMA</p>
+            <h1 className="page-title">Hábitos.</h1>
           </div>
-          <button className="btn btn-primary btn-sm">
-            <Plus size={14} /> Nuevo hábito
-          </button>
+          <div style={{ textAlign: "right", marginTop: 4 }}>
+            <p className="tick">{done}/{habits.length} completados</p>
+            <button className="btn btn-ghost btn-sm mt-2">
+              <Plus size={13} /> Nuevo
+            </button>
+          </div>
         </div>
       </div>
 

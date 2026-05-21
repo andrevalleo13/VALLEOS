@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { greeting, formatCurrency } from "@/lib/utils";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 export const revalidate = 0;
@@ -16,7 +16,6 @@ export default async function BriefPage() {
     { data: habits },
     { data: completions },
     { data: entries },
-    { data: capitalGoals },
     { data: banks },
     { data: briefCache },
   ] = await Promise.all([
@@ -26,7 +25,6 @@ export default async function BriefPage() {
     supabase.from("habits").select("id, name, color, icon").eq("active", true).order("sort_order"),
     supabase.from("habit_completions").select("habit_id").eq("date", today),
     supabase.from("financial_entries").select("category, amount").gte("date", today.slice(0, 7) + "-01"),
-    supabase.from("capital_goals").select("*"),
     supabase.from("bank_accounts").select("current_balance, currency").eq("active", true),
     supabase.from("shadow_cache").select("content").eq("key", `brief:${today}`).single(),
   ]);
@@ -50,193 +48,191 @@ export default async function BriefPage() {
     weekday: "long", day: "numeric", month: "long",
   });
 
+  const habitsDone = doneIds.size;
+  const habitsTotal = (habits ?? []).length;
+  const habitsPct = habitsTotal > 0 ? Math.round((habitsDone / habitsTotal) * 100) : 0;
+
   return (
-    <div className="page-body">
-      {/* Header */}
-      <div className="mb-8">
-        <p className="eyebrow mb-2" style={{ textTransform: "capitalize" }}>{dateStr}</p>
-        <h1 className="serif" style={{ fontSize: 40, color: "var(--bone)", lineHeight: 1.1 }}>
-          {greeting()}, {displayName}.
-        </h1>
-        {prefs?.vision_primary && (
-          <p style={{ color: "var(--gold)", marginTop: 8, fontSize: 14, fontFamily: "var(--f-mono)", letterSpacing: "0.05em" }}>
-            {prefs.vision_primary}
-          </p>
-        )}
-        {prefs?.vision_metadata && (
-          <p style={{ color: "var(--mute-2)", marginTop: 4, fontSize: 11, fontFamily: "var(--f-mono)", letterSpacing: "0.1em" }}>
-            {prefs.vision_metadata}
-          </p>
-        )}
-      </div>
-
-      {/* Shadow brief */}
-      <div className="card mb-6" style={{ borderColor: "var(--gold)", background: "var(--gold-glow)" }}>
-        <div className="flex items-start gap-4">
-          <div className="orb-sm flex-shrink-0 mt-1" />
-          <div className="flex-1">
-            <p className="eyebrow-gold mb-2">Shadow · Brief del día</p>
-            <p style={{ color: "var(--bone-dim)", fontSize: 14, lineHeight: 1.7 }}>
-              {briefCache?.content ?? "Shadow está preparando tu resumen del día. Escríbele para activar el análisis."}
-            </p>
-            <Link href="/shadow" className="btn btn-ghost btn-sm mt-3 inline-flex">
-              Hablar con Shadow <ArrowRight size={13} />
-            </Link>
+    <div>
+      {/* Page header */}
+      <div className="page-header">
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+          <div>
+            <p className="eyebrow mb-2">00 · BRIEF</p>
+            <h1 style={{ fontFamily: "var(--f-serif)", fontSize: 38, color: "var(--bone)", lineHeight: 1.05 }}>
+              {greeting()},{" "}
+              <em style={{ color: "var(--gold)", fontStyle: "italic" }}>{displayName}</em>.
+            </h1>
+          </div>
+          <div style={{ textAlign: "right", marginTop: 4 }}>
+            <p className="tick" style={{ textTransform: "capitalize" }}>{dateStr}</p>
+            {prefs?.vision_primary && (
+              <p style={{ color: "var(--mute)", fontFamily: "var(--f-mono)", fontSize: 11, marginTop: 4, maxWidth: 260 }}>
+                {prefs.vision_primary}
+              </p>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Focus del día */}
-      {dailyNote?.focus && (
-        <div className="card mb-6">
-          <p className="eyebrow mb-2">Intención del día</p>
-          <p style={{ fontFamily: "var(--f-serif)", fontSize: 20, color: "var(--bone)" }}>
-            {dailyNote.focus}
-          </p>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {/* Prioridades */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-3">
-            <p className="eyebrow">Prioridades de hoy</p>
-            <Link href="/brain" className="tick hover:text-[var(--gold)] transition-colors">
-              + agregar
-            </Link>
+      {/* Two-column body */}
+      <div
+        className="page-body"
+        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}
+      >
+        {/* ── Left column ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Shadow brief */}
+          <div
+            className="card"
+            style={{ borderColor: "var(--gold)", background: "rgba(201,163,95,0.06)" }}
+          >
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+              <div
+                style={{
+                  width: 28, height: 28, borderRadius: "50%",
+                  background: "var(--gold-glow)", border: "1px solid var(--gold)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0, marginTop: 2,
+                }}
+              >
+                <Sparkles size={13} style={{ color: "var(--gold)" }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <p className="eyebrow-gold mb-2">Shadow · Brief del día</p>
+                <p style={{ color: "var(--bone-dim)", fontSize: 14, lineHeight: 1.7 }}>
+                  {briefCache?.content ??
+                    "Shadow está preparando tu resumen del día. Escríbele para activar el análisis."}
+                </p>
+                <Link href="/shadow" className="btn btn-ghost btn-sm mt-3 inline-flex">
+                  Hablar con Shadow <ArrowRight size={13} />
+                </Link>
+              </div>
+            </div>
           </div>
-          {(priorities ?? []).length === 0 ? (
-            <p className="tick">Sin prioridades definidas</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {(priorities ?? []).map((p) => (
-                <div key={p.id} className="flex items-center gap-3">
-                  <div
-                    className={`habit-check ${p.completed ? "done" : ""}`}
-                    style={{ flexShrink: 0 }}
-                  >
-                    {p.completed && <Check size={12} style={{ color: "white" }} />}
+
+          {/* Intención del día */}
+          {dailyNote?.focus && (
+            <div className="card">
+              <p className="eyebrow mb-2">Intención del día</p>
+              <p style={{ fontFamily: "var(--f-serif)", fontSize: 20, color: "var(--bone)", lineHeight: 1.4 }}>
+                "{dailyNote.focus}"
+              </p>
+            </div>
+          )}
+
+          {/* Prioridades */}
+          <div className="card">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <p className="eyebrow">Prioridades</p>
+              <span className="tick">{(priorities ?? []).filter((p) => p.completed).length}/{(priorities ?? []).length}</span>
+            </div>
+            {(priorities ?? []).length === 0 ? (
+              <p className="tick">Sin prioridades para hoy</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {(priorities ?? []).map((p) => (
+                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div
+                      className={`habit-check ${p.completed ? "done" : ""}`}
+                      style={{ flexShrink: 0 }}
+                    >
+                      {p.completed && <Check size={12} style={{ color: "white" }} />}
+                    </div>
+                    <span
+                      style={{
+                        fontSize: 13,
+                        color: p.completed ? "var(--mute)" : "var(--bone-dim)",
+                        textDecoration: p.completed ? "line-through" : "none",
+                        flex: 1,
+                      }}
+                    >
+                      {p.text}
+                    </span>
                   </div>
-                  <span
-                    style={{
-                      fontSize: 14,
-                      color: p.completed ? "var(--mute)" : "var(--bone-dim)",
-                      textDecoration: p.completed ? "line-through" : "none",
-                    }}
-                  >
-                    {p.text}
-                  </span>
-                </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Right column ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Hábitos */}
+          <Link href="/habitos" className="card" style={{ textDecoration: "none" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <p className="eyebrow">Hábitos · hoy</p>
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 12, color: habitsTotal > 0 && habitsDone === habitsTotal ? "var(--green)" : "var(--mute)" }}>
+                {habitsDone}/{habitsTotal}
+              </span>
+            </div>
+            <div className="progress progress-lg mb-3">
+              <div
+                className="progress-fill green"
+                style={{ width: `${habitsPct}%` }}
+              />
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {(habits ?? []).slice(0, 8).map((h) => (
+                <span
+                  key={h.id}
+                  className="tag"
+                  style={
+                    doneIds.has(h.id)
+                      ? { borderColor: "var(--green)", color: "var(--green)", background: "rgba(127,169,140,0.15)" }
+                      : {}
+                  }
+                >
+                  {h.name}
+                </span>
               ))}
+            </div>
+          </Link>
+
+          {/* Finanzas */}
+          <Link href="/finanzas" className="card" style={{ textDecoration: "none" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <p className="eyebrow">
+                Finanzas · {new Date().toLocaleDateString("es-MX", { month: "long" })}
+              </p>
+              <ArrowRight size={13} style={{ color: "var(--mute-2)" }} />
+            </div>
+            <p style={{ fontFamily: "var(--f-mono)", fontSize: 24, color: "var(--bone)", lineHeight: 1 }}>
+              {totalBalance > 0 ? formatCurrency(totalBalance) : "—"}
+            </p>
+            <p className="metric-label mt-1">Saldo total</p>
+            <div style={{ display: "flex", gap: 20, marginTop: 12 }}>
+              <div>
+                <p className="tick">Ingresos</p>
+                <p style={{ color: "var(--green)", fontFamily: "var(--f-mono)", fontSize: 13 }}>
+                  {monthIncome > 0 ? `+${formatCurrency(monthIncome)}` : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="tick">Gastos</p>
+                <p style={{ color: "var(--red)", fontFamily: "var(--f-mono)", fontSize: 13 }}>
+                  {monthExpenses > 0 ? `-${formatCurrency(monthExpenses)}` : "—"}
+                </p>
+              </div>
+            </div>
+          </Link>
+
+          {/* Vision */}
+          {prefs?.vision_secondary && (
+            <div className="card" style={{ borderColor: "var(--glass-bd-2)" }}>
+              <p className="eyebrow-gold mb-3">Visión</p>
+              <p
+                className="serif"
+                style={{ fontSize: 17, color: "var(--bone)", lineHeight: 1.5 }}
+              >
+                {prefs.vision_primary}
+              </p>
+              <p style={{ color: "var(--mute)", marginTop: 8, fontSize: 13, fontFamily: "var(--f-sans)" }}>
+                {prefs.vision_secondary}
+              </p>
             </div>
           )}
         </div>
-
-        {/* Hábitos */}
-        <Link href="/habitos" className="card hover:no-underline group">
-          <div className="flex items-center justify-between mb-4">
-            <p className="eyebrow">Hábitos</p>
-            <ArrowRight size={13} style={{ color: "var(--mute-2)" }} className="group-hover:translate-x-1 transition-transform" />
-          </div>
-          <div className="metric mb-3">
-            <span className="metric-value">
-              {doneIds.size}
-              <span style={{ fontSize: 16, color: "var(--mute)" }}>/{(habits ?? []).length}</span>
-            </span>
-            <span className="metric-label">Completados hoy</span>
-          </div>
-          <div className="progress mb-3">
-            <div
-              className="progress-fill green"
-              style={{
-                width: habits?.length
-                  ? `${(doneIds.size / habits.length) * 100}%`
-                  : "0%",
-              }}
-            />
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {(habits ?? []).slice(0, 6).map((h) => (
-              <span
-                key={h.id}
-                className="tag"
-                style={
-                  doneIds.has(h.id)
-                    ? { borderColor: "var(--green)", color: "var(--green)", background: "rgba(127,169,140,0.15)" }
-                    : {}
-                }
-              >
-                {h.name}
-              </span>
-            ))}
-          </div>
-        </Link>
-
-        {/* Finanzas */}
-        <Link href="/finanzas" className="card hover:no-underline group">
-          <div className="flex items-center justify-between mb-4">
-            <p className="eyebrow">Finanzas · {new Date().toLocaleDateString("es-MX", { month: "long" })}</p>
-            <ArrowRight size={13} style={{ color: "var(--mute-2)" }} className="group-hover:translate-x-1 transition-transform" />
-          </div>
-          <div className="metric mb-3">
-            <span className="metric-value" style={{ fontSize: 22 }}>
-              {totalBalance > 0 ? formatCurrency(totalBalance) : "—"}
-            </span>
-            <span className="metric-label">Saldo total (cuentas)</span>
-          </div>
-          <div className="flex gap-4">
-            <div>
-              <p className="tick">Ingresos</p>
-              <p style={{ color: "var(--green)", fontFamily: "var(--f-mono)", fontSize: 14 }}>
-                {monthIncome > 0 ? `+${formatCurrency(monthIncome)}` : "—"}
-              </p>
-            </div>
-            <div>
-              <p className="tick">Gastos</p>
-              <p style={{ color: "var(--red)", fontFamily: "var(--f-mono)", fontSize: 14 }}>
-                {monthExpenses > 0 ? `-${formatCurrency(monthExpenses)}` : "—"}
-              </p>
-            </div>
-          </div>
-        </Link>
-
-        {/* Capital goals */}
-        {(capitalGoals ?? []).length > 0 && (
-          <div className="card">
-            <p className="eyebrow mb-4">Metas de capital</p>
-            <div className="flex flex-col gap-4">
-              {(capitalGoals ?? []).map((g) => {
-                const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100));
-                return (
-                  <div key={g.id}>
-                    <div className="flex justify-between mb-1">
-                      <span style={{ fontSize: 13, color: "var(--bone-dim)" }}>{g.name}</span>
-                      <span className="tick" style={{ color: "var(--gold)" }}>{pct}%</span>
-                    </div>
-                    <div className="progress">
-                      <div className="progress-fill" style={{ width: `${pct}%` }} />
-                    </div>
-                    <div className="flex justify-between mt-1">
-                      <span className="tick">{formatCurrency(g.current_amount)}</span>
-                      <span className="tick">meta: {formatCurrency(g.target_amount)}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Vision */}
-        {prefs?.vision_secondary && (
-          <div className="card" style={{ borderColor: "var(--glass-bd-2)" }}>
-            <p className="eyebrow-gold mb-3">Visión</p>
-            <p className="serif" style={{ fontSize: 18, color: "var(--bone)", lineHeight: 1.4 }}>
-              {prefs.vision_primary}
-            </p>
-            <p style={{ color: "var(--mute)", marginTop: 8, fontSize: 13 }}>{prefs.vision_secondary}</p>
-          </div>
-        )}
       </div>
     </div>
   );

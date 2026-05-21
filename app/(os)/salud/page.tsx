@@ -33,8 +33,8 @@ export default async function SaludPage() {
       <div className="page-header">
         <div className="flex items-start justify-between">
           <div>
-            <p className="eyebrow mb-2">Bienestar</p>
-            <h1 className="page-title">Salud</h1>
+            <p className="eyebrow mb-2">10 · BIENESTAR</p>
+            <h1 className="page-title">Salud.</h1>
           </div>
           <button className="btn btn-primary btn-sm"><Plus size={14} /> Registrar hoy</button>
         </div>

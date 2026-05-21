@@ -67,8 +67,8 @@ export default async function MetasPage() {
       <div className="page-header">
         <div className="flex items-start justify-between">
           <div>
-            <p className="eyebrow mb-2">Objetivos 2026</p>
-            <h1 className="page-title">Metas</h1>
+            <p className="eyebrow mb-2">07 · OBJETIVOS</p>
+            <h1 className="page-title">Metas.</h1>
           </div>
           <button className="btn btn-primary btn-sm">
             <Plus size={14} /> Nueva meta

@@ -1,97 +1,180 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAppStore } from "@/lib/store";
 import { Logo } from "@/components/Logo";
-import {
-  Home, Grid3x3, Sparkles, DollarSign, Brain, Calendar,
-  CheckSquare, Target, Briefcase, BookOpen, Heart, Clock,
-  FileText, Settings, Moon, Zap
-} from "lucide-react";
+import { ChevronDown, ChevronRight, Search, Moon, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_SECTIONS = [
   {
-    label: "Core",
+    label: "CORE",
     items: [
-      { label: "Brief", icon: Home, href: "/" },
-      { label: "Centro", icon: Grid3x3, href: "/centro" },
-      { label: "Shadow", icon: Sparkles, href: "/shadow" },
+      { n: "00", label: "Brief", href: "/" },
+      { n: "01", label: "Centro", href: "/centro" },
+      { n: "02", label: "Shadow", href: "/shadow" },
     ],
   },
   {
-    label: "Vida",
+    label: "VIDA",
     items: [
-      { label: "Finanzas", icon: DollarSign, href: "/finanzas" },
-      { label: "Brain", icon: Brain, href: "/brain" },
-      { label: "Calendario", icon: Calendar, href: "/calendario" },
-      { label: "Hábitos", icon: CheckSquare, href: "/habitos" },
-      { label: "Metas", icon: Target, href: "/metas" },
+      { n: "03", label: "Finanzas", href: "/finanzas" },
+      { n: "04", label: "Brain", href: "/brain" },
+      { n: "05", label: "Calendario", href: "/calendario" },
+      { n: "06", label: "Hábitos", href: "/habitos" },
+      { n: "07", label: "Metas", href: "/metas" },
     ],
   },
   {
-    label: "Módulos",
+    label: "MÓDULOS",
     items: [
-      { label: "Flouvia", icon: Briefcase, href: "/flouvia" },
-      { label: "Panamericana", icon: BookOpen, href: "/panamericana" },
+      { n: "08", label: "Flouvia", href: "/flouvia" },
+      { n: "09", label: "Panamericana", href: "/panamericana" },
     ],
   },
   {
-    label: "Más",
+    label: "MÁS",
     items: [
-      { label: "Salud", icon: Heart, href: "/salud" },
-      { label: "Lectura", icon: BookOpen, href: "/lectura" },
-      { label: "Tiempo", icon: Clock, href: "/tiempo" },
-      { label: "Páginas", icon: FileText, href: "/paginas" },
+      { n: "10", label: "Salud", href: "/salud" },
+      { n: "11", label: "Lectura", href: "/lectura" },
+      { n: "12", label: "Tiempo", href: "/tiempo" },
+      { n: "13", label: "Páginas", href: "/paginas" },
     ],
   },
 ];
 
+const ALL_ITEMS = NAV_SECTIONS.flatMap((s) => s.items);
+
 export function Sidebar() {
   const pathname = usePathname();
-  const { setCierreOpen, ajustes } = useAppStore();
+  const { setCierreOpen, mobileMenu, setMobileMenu } = useAppStore();
+  const [search, setSearch] = useState("");
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  function toggleSection(label: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  }
+
+  const filtered = search.trim()
+    ? ALL_ITEMS.filter((i) =>
+        i.label.toLowerCase().includes(search.toLowerCase())
+      )
+    : null;
+
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
-    <nav className="shell-sidebar">
-      <div className="sidebar-logo">
-        <Logo />
-      </div>
+    <>
+      {/* Mobile overlay */}
+      {mobileMenu && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 39, background: "rgba(0,0,0,0.4)" }}
+          onClick={() => setMobileMenu(false)}
+        />
+      )}
 
-      <div className="sidebar-nav">
-        {NAV_SECTIONS.map((section) => (
-          <div key={section.label}>
-            <p className="nav-section-label">{section.label}</p>
-            {section.items.map((item) => {
-              const active =
-                item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-              return (
+      <nav className={cn("shell-sidebar", mobileMenu && "open")}>
+        {/* Brand */}
+        <div className="sidebar-logo">
+          <Logo variant="mark" />
+          <span className="sidebar-brand">
+            VALLE<span style={{ color: "var(--gold)" }}>OS</span>
+          </span>
+        </div>
+
+        {/* Search */}
+        <div className="sidebar-search-wrap">
+          <Search size={12} />
+          <input
+            className="sidebar-search"
+            placeholder="Buscar módulo..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        {/* Nav */}
+        <div className="sidebar-nav">
+          {filtered ? (
+            <>
+              {filtered.length === 0 && (
+                <p className="tick px-3 py-4 text-center">Sin resultados</p>
+              )}
+              {filtered.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={cn("nav-item", active && "active")}
+                  className={cn("nav-item-v2", isActive(item.href) && "active")}
+                  onClick={() => setMobileMenu(false)}
                 >
-                  <item.icon size={16} />
-                  {item.label}
+                  <span className="nav-num">{item.n}</span>
+                  <span>{item.label}</span>
                 </Link>
+              ))}
+            </>
+          ) : (
+            NAV_SECTIONS.map((section) => {
+              const isCollapsed = collapsed.has(section.label);
+              return (
+                <div key={section.label}>
+                  <button
+                    className="nav-section-btn"
+                    onClick={() => toggleSection(section.label)}
+                  >
+                    <span className="nav-section-label">{section.label}</span>
+                    {isCollapsed ? (
+                      <ChevronRight size={9} />
+                    ) : (
+                      <ChevronDown size={9} />
+                    )}
+                  </button>
+                  {!isCollapsed &&
+                    section.items.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={cn(
+                          "nav-item-v2",
+                          isActive(item.href) && "active"
+                        )}
+                        onClick={() => setMobileMenu(false)}
+                      >
+                        <span className="nav-num">{item.n}</span>
+                        <span>{item.label}</span>
+                      </Link>
+                    ))}
+                </div>
               );
-            })}
-          </div>
-        ))}
-      </div>
+            })
+          )}
+        </div>
 
-      <div className="sidebar-footer">
-        <button
-          className="nav-item w-full"
-          onClick={() => setCierreOpen(true)}
-        >
-          <Moon size={16} />
-          Cierre nocturno
-        </button>
-        <Link href="/config" className={cn("nav-item", pathname === "/config" && "active")}>
-          <Settings size={16} />
-          Configuración
-        </Link>
-      </div>
-    </nav>
+        {/* Footer */}
+        <div className="sidebar-footer">
+          <button
+            className="nav-item"
+            onClick={() => { setCierreOpen(true); setMobileMenu(false); }}
+          >
+            <Moon size={14} />
+            Cierre nocturno
+          </button>
+          <Link
+            href="/config"
+            className={cn("nav-item", pathname === "/config" && "active")}
+            onClick={() => setMobileMenu(false)}
+          >
+            <User size={14} />
+            André · Personalizar
+          </Link>
+        </div>
+      </nav>
+    </>
   );
 }

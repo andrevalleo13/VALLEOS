@@ -30,8 +30,8 @@ export default async function TiempoPage() {
       <div className="page-header">
         <div className="flex items-start justify-between">
           <div>
-            <p className="eyebrow mb-2">Gestión del tiempo</p>
-            <h1 className="page-title">Tiempo</h1>
+            <p className="eyebrow mb-2">12 · TIEMPO</p>
+            <h1 className="page-title">Tiempo.</h1>
           </div>
           <button className="btn btn-primary btn-sm"><Plus size={14} /> Log</button>
         </div>

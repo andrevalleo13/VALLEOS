@@ -1,102 +1,83 @@
 "use client";
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import { useAppStore } from "@/lib/store";
-import { Search, Plus, Settings, Menu, Zap } from "lucide-react";
+import { Bell, Menu, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const PAGE_TITLES: Record<string, string> = {
-  "/": "Brief",
-  "/centro": "Centro",
-  "/shadow": "Shadow",
-  "/finanzas": "Finanzas",
-  "/brain": "Brain",
-  "/calendario": "Calendario",
-  "/habitos": "Hábitos",
-  "/metas": "Metas",
-  "/flouvia": "Flouvia",
-  "/panamericana": "Panamericana",
-  "/salud": "Salud",
-  "/lectura": "Lectura",
-  "/tiempo": "Tiempo",
-  "/paginas": "Páginas",
-  "/config": "Configuración",
-};
-
-function Clock() {
-  const [time, setTime] = useState("");
-  const [date, setDate] = useState("");
+export function Topbar() {
+  const {
+    setCmdkOpen,
+    setCaptureOpen,
+    setCierreOpen,
+    setAjustesOpen,
+    setMobileMenu,
+    focusMode,
+    setFocusMode,
+  } = useAppStore();
 
   useEffect(() => {
-    function tick() {
-      const now = new Date();
-      setTime(now.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }));
-      setDate(now.toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" }));
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "j") {
+        e.preventDefault();
+        setCaptureOpen(true);
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === ".") {
+        e.preventDefault();
+        setCierreOpen(true);
+      }
     }
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  return (
-    <div className="tb-widget">
-      <span>{time}</span>
-      <span style={{ color: "var(--mute-2)" }}>·</span>
-      <span style={{ textTransform: "capitalize" }}>{date}</span>
-    </div>
-  );
-}
-
-export function Topbar() {
-  const pathname = usePathname();
-  const { setCmdkOpen, setCaptureOpen, setAjustesOpen, setMobileMenu, focusMode, setFocusMode } = useAppStore();
-  const title = PAGE_TITLES[pathname] ?? "Valle OS";
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [setCaptureOpen, setCierreOpen]);
 
   return (
     <header className="shell-topbar">
       <button
         className="tb-btn md:hidden"
         onClick={() => setMobileMenu(true)}
-        aria-label="Menu"
+        aria-label="Menú"
       >
-        <Menu size={18} />
+        <Menu size={16} />
       </button>
 
-      <h1 className="tb-title">{title}</h1>
+      <div style={{ flex: 1 }} />
 
-      <Clock />
+      {/* Keyboard shortcut chips */}
+      <button className="tb-shortcut" onClick={() => setCmdkOpen(true)} title="Búsqueda global">
+        ⌘K
+      </button>
+      <button className="tb-shortcut" onClick={() => setCaptureOpen(true)} title="Captura rápida">
+        ⌘J
+      </button>
+      <button className="tb-shortcut" onClick={() => setCierreOpen(true)} title="Cierre nocturno">
+        ⌘.
+      </button>
 
+      <div className="tb-divider" />
+
+      {/* Mode buttons */}
       <button
-        className={cn("tb-widget", focusMode && "border-[var(--gold)] text-[var(--gold)]")}
+        className={cn("tb-mode-btn", focusMode && "active")}
         onClick={() => setFocusMode(!focusMode)}
-        title="Focus mode"
+        title="Modo silencio"
       >
-        <Zap size={14} />
-        <span>Focus</span>
+        <Moon size={11} style={{ display: "inline", marginRight: 5, verticalAlign: "middle" }} />
+        Silencio
       </button>
 
       <button
-        className="tb-btn"
-        onClick={() => setCmdkOpen(true)}
-        title="Búsqueda (⌘K)"
-      >
-        <Search size={16} />
-      </button>
-
-      <button
-        className="tb-btn"
-        onClick={() => setCaptureOpen(true)}
-        title="Captura rápida"
-      >
-        <Plus size={18} />
-      </button>
-
-      <button
-        className="tb-btn"
+        className="tb-mode-btn"
         onClick={() => setAjustesOpen(true)}
         title="Ajustes"
       >
-        <Settings size={16} />
+        Ajustes
+      </button>
+
+      <div className="tb-divider" />
+
+      {/* Notification bell */}
+      <button className="tb-btn" aria-label="Notificaciones">
+        <Bell size={15} />
       </button>
     </header>
   );

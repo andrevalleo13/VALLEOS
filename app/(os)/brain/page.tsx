@@ -49,10 +49,10 @@ export default function BrainPage() {
   return (
     <div>
       <div className="page-header">
-        <div className="flex items-start justify-between mb-4">
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
           <div>
-            <p className="eyebrow mb-2">Segundo cerebro</p>
-            <h1 className="page-title">Brain</h1>
+            <p className="eyebrow mb-2">04 · CONOCIMIENTO</p>
+            <h1 className="page-title">Brain.</h1>
           </div>
         </div>
 

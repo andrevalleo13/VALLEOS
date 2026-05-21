@@ -45,16 +45,14 @@ export default async function PanamericanaPage() {
   return (
     <div>
       <div className="page-header">
-        <div className="flex items-start justify-between">
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div>
-            <p className="eyebrow mb-2">
-              {semesters?.[0]?.label ?? "Academia"}
-            </p>
-            <h1 className="page-title">Panamericana</h1>
+            <p className="eyebrow mb-2">09 · ACADEMIA</p>
+            <h1 className="page-title">Panamericana.</h1>
           </div>
-          <div className="flex gap-2">
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
             <button className="btn btn-ghost btn-sm"><Plus size={13} /> Materia</button>
-            <button className="btn btn-primary btn-sm"><Plus size={13} /> Entrega</button>
+            <button className="btn btn-ghost btn-sm"><Plus size={13} /> Entrega</button>
           </div>
         </div>
       </div>
