@@ -7,10 +7,11 @@ import { CaptureModal } from "@/components/shell/CaptureModal";
 import { CierreFlow } from "@/components/shell/CierreFlow";
 import { AjustesDrawer } from "@/components/shell/AjustesDrawer";
 import { FocusBanner } from "@/components/shell/FocusBanner";
+import { LockScreen } from "@/components/shell/LockScreen";
 
 export default function OSLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
+    <LockScreen>
       <AmbientBG />
       <div className="shell">
         <Sidebar />
@@ -23,6 +24,6 @@ export default function OSLayout({ children }: { children: React.ReactNode }) {
       <CierreFlow />
       <AjustesDrawer />
       <FocusBanner />
-    </>
+    </LockScreen>
   );
 }
