@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAppStore } from "@/lib/store";
 import { Logo } from "@/components/Logo";
-import { ChevronDown, ChevronRight, Search, Moon, User } from "lucide-react";
+import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_SECTIONS = [
@@ -84,9 +84,12 @@ export function Sidebar() {
         {/* Brand */}
         <div className="sidebar-logo">
           <Logo variant="mark" />
-          <span className="sidebar-brand">
-            VALLE<span style={{ color: "var(--gold)" }}>OS</span>
-          </span>
+          <div>
+            <div className="sidebar-brand">
+              VALLE<em style={{ color: "var(--gold)", fontStyle: "italic" }}>·</em>
+            </div>
+            <div className="sidebar-brand-meta">v2.0 · Motor de Ops</div>
+          </div>
         </div>
 
         {/* Search */}
@@ -158,21 +161,22 @@ export function Sidebar() {
 
         {/* Footer */}
         <div className="sidebar-footer">
-          <button
-            className="nav-item"
+          <div
+            className="nav-item-v2"
             onClick={() => { setCierreOpen(true); setMobileMenu(false); }}
           >
-            <Moon size={14} />
-            Cierre nocturno
-          </button>
-          <Link
-            href="/config"
-            className={cn("nav-item", pathname === "/config" && "active")}
-            onClick={() => setMobileMenu(false)}
-          >
-            <User size={14} />
-            André · Personalizar
-          </Link>
+            <span className="nav-num" style={{ color: "var(--mute-2)" }}>··</span>
+            <span>Cierre nocturno</span>
+          </div>
+          <div className="sidebar-user">
+            <div>
+              <div style={{ fontSize: 13 }}>André Valle</div>
+              <div style={{ fontFamily: "var(--f-mono)", fontSize: 9, letterSpacing: "0.16em", color: "var(--mute)", textTransform: "uppercase" }}>
+                OPERADOR · ADMIN
+              </div>
+            </div>
+            <div className="sidebar-avatar">A</div>
+          </div>
         </div>
       </nav>
     </>

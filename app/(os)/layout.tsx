@@ -1,6 +1,5 @@
 import { Sidebar } from "@/components/shell/Sidebar";
 import { Topbar } from "@/components/shell/Topbar";
-import { Ticker } from "@/components/shell/Ticker";
 import { AmbientBG } from "@/components/shell/AmbientBG";
 import { OrbFloating } from "@/components/shell/OrbFloating";
 import { CmdK } from "@/components/shell/CmdK";
@@ -17,7 +16,6 @@ export default function OSLayout({ children }: { children: React.ReactNode }) {
       <div className="shell">
         <Sidebar />
         <Topbar />
-        <Ticker />
         <main className="shell-content">{children}</main>
       </div>
       <OrbFloating />
