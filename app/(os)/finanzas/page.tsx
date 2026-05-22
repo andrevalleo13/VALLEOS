@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/utils";
-import { Plus, TrendingUp, TrendingDown, CreditCard, Landmark } from "lucide-react";
-import type { FinancialEntry } from "@/lib/supabase/types";
+import { TrendingUp, TrendingDown, CreditCard, Landmark } from "lucide-react";
+import { AddEntry } from "./AddEntry";
 
 export const revalidate = 0;
 
@@ -65,12 +65,10 @@ export default async function FinanzasPage() {
             <h1 className="page-title">Finanzas.</h1>
           </div>
           <div style={{ textAlign: "right", marginTop: 4 }}>
-            <p className="tick" style={{ textTransform: "capitalize" }}>
+            <p className="tick" style={{ textTransform: "capitalize", marginBottom: 8 }}>
               {new Date().toLocaleDateString("es-MX", { month: "long", year: "numeric" })}
             </p>
-            <button className="btn btn-ghost btn-sm mt-2">
-              <Plus size={13} /> Registrar
-            </button>
+            <AddEntry />
           </div>
         </div>
       </div>
@@ -217,10 +215,8 @@ export default async function FinanzasPage() {
           </div>
           {(entries ?? []).length === 0 ? (
             <div className="card text-center py-8">
-              <p style={{ color: "var(--mute)", fontSize: 14 }}>Sin movimientos este mes</p>
-              <button className="btn btn-primary btn-sm mt-4">
-                <Plus size={13} /> Registrar primero
-              </button>
+              <p style={{ color: "var(--mute)", fontSize: 14, marginBottom: 16 }}>Sin movimientos este mes</p>
+              <AddEntry variant="primary" label="Registrar primero" />
             </div>
           ) : (
             <div className="tx-list">

@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/utils";
-import { Plus, Users, FileText, Calendar, AlertCircle } from "lucide-react";
-import type { FlouviaClient, FlouviaProject, FlouviaInvoice } from "@/lib/supabase/types";
+import { Calendar, AlertCircle } from "lucide-react";
+import { AddClient } from "./AddClient";
+import type { ClientStatus } from "@/lib/supabase/types";
 
 export const revalidate = 0;
 
@@ -58,8 +59,7 @@ export default async function FlouviaPage() {
             <h1 className="page-title">Flouvia.</h1>
           </div>
           <div className="flex gap-2">
-            <button className="btn btn-ghost btn-sm"><Plus size={13} /> Cliente</button>
-            <button className="btn btn-primary btn-sm"><Plus size={13} /> Proyecto</button>
+            <AddClient variant="primary" label="Cliente" />
           </div>
         </div>
       </div>
@@ -112,8 +112,8 @@ export default async function FlouviaPage() {
         {/* Clients kanban */}
         {(clients ?? []).length === 0 ? (
           <div className="card text-center py-12">
-            <p style={{ color: "var(--mute)", fontSize: 15 }}>Sin clientes registrados.</p>
-            <button className="btn btn-primary btn-sm mt-4"><Plus size={13} /> Agregar primer cliente</button>
+            <p style={{ color: "var(--mute)", fontSize: 15, marginBottom: 16 }}>Sin clientes registrados.</p>
+            <AddClient variant="primary" label="Agregar primer cliente" />
           </div>
         ) : (
           <>
@@ -152,9 +152,9 @@ export default async function FlouviaPage() {
                       </div>
                     ))}
 
-                    <button className="btn btn-ghost btn-sm w-full mt-2" style={{ width: "100%", justifyContent: "center" }}>
-                      <Plus size={12} /> Agregar
-                    </button>
+                    <div style={{ marginTop: 8 }}>
+                      <AddClient defaultStatus={stage as ClientStatus} label="Agregar" full />
+                    </div>
                   </div>
                 );
               })}

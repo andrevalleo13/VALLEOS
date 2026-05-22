@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import { Plus, Target } from "lucide-react";
+import { Target } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { AddGoal } from "./AddGoal";
 import type { Goal, GoalMilestone } from "@/lib/supabase/types";
 
 export const revalidate = 0;
@@ -70,9 +71,7 @@ export default async function MetasPage() {
             <p className="eyebrow mb-2">07 · OBJETIVOS</p>
             <h1 className="page-title">Metas.</h1>
           </div>
-          <button className="btn btn-primary btn-sm">
-            <Plus size={14} /> Nueva meta
-          </button>
+          <AddGoal />
         </div>
       </div>
 
@@ -123,7 +122,8 @@ export default async function MetasPage() {
         {typedGoals.length === 0 ? (
           <div className="card text-center py-12">
             <Target size={32} style={{ color: "var(--mute-2)", margin: "0 auto 12px" }} />
-            <p style={{ color: "var(--mute)", fontSize: 14 }}>Sin metas configuradas</p>
+            <p style={{ color: "var(--mute)", fontSize: 14, marginBottom: 16 }}>Sin metas configuradas</p>
+            <AddGoal label="Crear primera meta" />
           </div>
         ) : (
           <div className="flex flex-col gap-4">

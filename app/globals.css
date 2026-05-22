@@ -2016,6 +2016,61 @@
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 0.8s linear infinite; }
 
+/* ─── Modal ──────────────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: rgba(6, 6, 10, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: grid;
+  place-items: start center;
+  padding-top: 14vh;
+  animation: fade-in 200ms ease;
+}
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.modal-card {
+  width: min(480px, 92vw);
+  border-radius: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--glass-bd-2);
+  box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  animation: capture-pop 280ms cubic-bezier(.2, .7, .2, 1);
+}
+@keyframes capture-pop {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.modal-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.modal-field { display: flex; flex-direction: column; gap: 6px; }
+.modal-field-label {
+  font-family: var(--f-mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
 /* live scan shimmer for cards */
 .live { position: relative; overflow: hidden; }
 .live::after {
@@ -2037,6 +2092,20 @@
   display: flex;
   gap: 3px;
 }
+
+.habit-del {
+  background: transparent;
+  border: none;
+  color: var(--mute-2);
+  cursor: pointer;
+  padding: 4px;
+  margin-left: 4px;
+  opacity: 0;
+  transition: opacity 0.15s var(--ease), color 0.15s var(--ease);
+  flex-shrink: 0;
+}
+.habit-row:hover .habit-del { opacity: 1; }
+.habit-del:hover { color: var(--red); }
 
 .habit-day {
   width: 10px;

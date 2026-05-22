@@ -1,9 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Check, Plus, Flame } from "lucide-react";
+import { Check, Plus, Flame, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import type { Habit, HabitCompletion } from "@/lib/supabase/types";
+import { Modal, Field } from "@/components/Modal";
+import type { Habit } from "@/lib/supabase/types";
+
+const COLORS = ["#C9A35F", "#7FA98C", "#5B8DB8", "#8B77CC", "#D96B58"];
 
 type HabitWithDone = Habit & { done: boolean; streak: number };
 
@@ -26,6 +29,10 @@ export default function HabitosPage() {
   const [habits, setHabits] = useState<HabitWithDone[]>([]);
   const [weekHistory, setWeekHistory] = useState<Record<string, Set<string>>>({});
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState(COLORS[0]);
+  const [saving, setSaving] = useState(false);
 
   const weekDates_ = weekDates();
 
@@ -78,6 +85,28 @@ export default function HabitosPage() {
     await load();
   }
 
+  async function createHabit() {
+    const name = newName.trim();
+    if (!name) return;
+    setSaving(true);
+    const maxSort = habits.reduce((m, h) => Math.max(m, h.sort_order), 0);
+    await supabase.from("habits").insert({
+      name, active: true, sort_order: maxSort + 1, type: "binary", unit: null,
+      daily_target: null, color: newColor, icon: null, freezes_available: 0,
+      schedule_days: [0, 1, 2, 3, 4, 5, 6],
+    });
+    setSaving(false);
+    setCreating(false);
+    setNewName("");
+    setNewColor(COLORS[0]);
+    await load();
+  }
+
+  async function removeHabit(habitId: string) {
+    setHabits((prev) => prev.filter((h) => h.id !== habitId));
+    await supabase.from("habits").update({ active: false }).eq("id", habitId);
+  }
+
   const done = habits.filter((h) => h.done).length;
 
   if (loading) {
@@ -101,8 +130,8 @@ export default function HabitosPage() {
             <h1 className="page-title">Hábitos.</h1>
           </div>
           <div style={{ textAlign: "right", marginTop: 4 }}>
-            <p className="tick">{done}/{habits.length} completados</p>
-            <button className="btn btn-ghost btn-sm mt-2">
+            <p className="tick" style={{ marginBottom: 8 }}>{done}/{habits.length} completados</p>
+            <button className="btn btn-ghost btn-sm" onClick={() => setCreating(true)}>
               <Plus size={13} /> Nuevo
             </button>
           </div>
@@ -146,7 +175,10 @@ export default function HabitosPage() {
         {habits.length === 0 ? (
           <div className="card text-center py-12">
             <p style={{ color: "var(--mute)", fontSize: 15 }}>Sin hábitos configurados.</p>
-            <p className="tick mt-1">Agrega tus primeros hábitos para empezar.</p>
+            <p className="tick mt-1 mb-4">Agrega tus primeros hábitos para empezar.</p>
+            <button className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
+              <Plus size={13} /> Crear hábito
+            </button>
           </div>
         ) : (
           <div>
@@ -192,12 +224,56 @@ export default function HabitosPage() {
                     <Flame size={12} style={{ color: "var(--gold)" }} />
                     <span className="habit-streak">{h.streak}</span>
                   </div>
+
+                  <button
+                    className="habit-del"
+                    onClick={() => removeHabit(h.id)}
+                    title="Archivar hábito"
+                  >
+                    <Trash2 size={12} />
+                  </button>
                 </div>
               ))}
             </div>
           </div>
         )}
       </div>
+
+      {creating && (
+        <Modal title="Nuevo hábito" onClose={() => setCreating(false)}>
+          <Field label="Nombre">
+            <input
+              className="input"
+              autoFocus
+              placeholder="ej. Leer 30 min"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") createHabit(); }}
+            />
+          </Field>
+          <Field label="Color">
+            <div style={{ display: "flex", gap: 10 }}>
+              {COLORS.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setNewColor(c)}
+                  style={{
+                    width: 28, height: 28, borderRadius: "50%", background: c, cursor: "pointer",
+                    border: newColor === c ? "2px solid var(--bone)" : "2px solid transparent",
+                  }}
+                  aria-label={c}
+                />
+              ))}
+            </div>
+          </Field>
+          <div className="modal-actions">
+            <button className="btn btn-ghost btn-sm" onClick={() => setCreating(false)}>Cancelar</button>
+            <button className="btn btn-primary btn-sm" onClick={createHabit} disabled={saving || !newName.trim()}>
+              {saving ? "Creando…" : "Crear"}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
