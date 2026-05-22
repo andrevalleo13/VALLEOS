@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
-import { ShadowHUD } from "@/components/shell/ShadowHUD";
+import { ShadowOrb } from "@/components/shell/ShadowOrb";
 import type { ShadowConversation } from "@/lib/supabase/types";
 
 type ToolAction = { name: string; summary?: string; ok?: boolean; running: boolean };
@@ -223,7 +223,7 @@ export default function ShadowPage() {
             <span className="tick" style={{ fontSize: 9 }}>SUPABASE · E2E</span>
           </div>
 
-          <ShadowHUD thinking={thinking} telemetry={telem} />
+          <ShadowOrb thinking={thinking} />
 
           <div className={`hud-wave ${thinking ? "" : "idle"}`}>
             {Array.from({ length: 28 }).map((_, i) => (
@@ -240,6 +240,15 @@ export default function ShadowPage() {
           <p className="serif" style={{ fontSize: 20, fontStyle: "italic", color: "var(--bone-dim)", textAlign: "center" }}>
             {thinking ? "Procesando…" : "“Estoy aquí, André.”"}
           </p>
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+            {telem.slice(0, 3).map((t) => (
+              <div key={t.l} className="stat-pill">
+                <span className="v">{t.v}</span>
+                <span className="l">{t.l}</span>
+              </div>
+            ))}
+          </div>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
             <span className="tag">CONTEXTO · MEMORIA</span>
