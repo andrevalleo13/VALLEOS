@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { Plus } from "lucide-react";
-import type { HealthEntry } from "@/lib/supabase/types";
+import { LogHealth } from "./LogHealth";
 
 export const revalidate = 0;
 
@@ -36,7 +35,7 @@ export default async function SaludPage() {
             <p className="eyebrow mb-2">10 · BIENESTAR</p>
             <h1 className="page-title">Salud.</h1>
           </div>
-          <button className="btn btn-primary btn-sm"><Plus size={14} /> Registrar hoy</button>
+          <LogHealth />
         </div>
       </div>
 
@@ -121,8 +120,8 @@ export default async function SaludPage() {
         {(entries ?? []).length === 0 ? (
           <div className="card text-center py-12">
             <p style={{ color: "var(--mute)", fontSize: 14 }}>Sin registros de salud</p>
-            <p className="tick mt-1">Registra tu sueño, peso y energía diariamente</p>
-            <button className="btn btn-primary btn-sm mt-4"><Plus size={13} /> Primer registro</button>
+            <p className="tick mt-1 mb-4">Registra tu sueño, peso y energía diariamente</p>
+            <LogHealth label="Primer registro" />
           </div>
         ) : (
           <div className="card">

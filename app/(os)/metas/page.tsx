@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Target } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { AddGoal } from "./AddGoal";
+import { GoalProgress } from "./GoalProgress";
 import type { Goal, GoalMilestone } from "@/lib/supabase/types";
 
 export const revalidate = 0;
@@ -51,17 +52,6 @@ export default async function MetasPage() {
   const avgProgress = typedGoals.length > 0
     ? Math.round(typedGoals.filter(g => g.status === "active").reduce((a, g) => a + g.current_value, 0) / (active || 1))
     : 0;
-
-  function getProgress(g: GoalWithMilestones) {
-    if (g.progress_type === "milestones" && g.goal_milestones.length > 0) {
-      return Math.round((g.goal_milestones.filter((m) => m.done).length / g.goal_milestones.length) * 100);
-    }
-    if (g.progress_type === "percentage") return Math.min(100, g.current_value);
-    if (g.progress_type === "numeric" && g.target_value) {
-      return Math.min(100, Math.round((g.current_value / g.target_value) * 100));
-    }
-    return 0;
-  }
 
   return (
     <div>
@@ -129,8 +119,6 @@ export default async function MetasPage() {
           <div className="flex flex-col gap-4">
             {typedGoals.map((g) => {
               const color = CAT_COLORS[g.category] ?? "var(--mute)";
-              const pct = getProgress(g);
-              const milestones = g.goal_milestones?.sort((a, b) => a.sort_order - b.sort_order) ?? [];
 
               return (
                 <div key={g.id} className="card" style={g.pinned ? { borderColor: color } : {}}>
@@ -163,38 +151,15 @@ export default async function MetasPage() {
                         <p style={{ color: "var(--mute)", fontSize: 13, marginBottom: 10 }}>{g.description}</p>
                       )}
 
-                      {/* Numeric progress */}
-                      {g.progress_type === "numeric" && g.target_value && (
-                        <p style={{ fontFamily: "var(--f-mono)", fontSize: 13, color: "var(--bone-dim)", marginBottom: 8 }}>
-                          {g.current_value} {g.unit} / {g.target_value} {g.unit}
-                        </p>
-                      )}
-
-                      <div className="flex justify-between mb-1">
-                        <span className="tick">Progreso</span>
-                        <span className="tick" style={{ color }}>{pct}%</span>
-                      </div>
-                      <div className="progress mb-3">
-                        <div className="progress-fill" style={{ width: `${pct}%`, background: color }} />
-                      </div>
-
-                      {/* Milestones */}
-                      {milestones.length > 0 && (
-                        <div className="flex gap-1 flex-wrap">
-                          {milestones.map((ms) => (
-                            <span
-                              key={ms.id}
-                              className="tag"
-                              style={ms.done
-                                ? { borderColor: "var(--green)", color: "var(--green)", background: "rgba(127,169,140,0.15)", fontSize: 11 }
-                                : { fontSize: 11 }
-                              }
-                            >
-                              {ms.done ? "✓ " : ""}{ms.title}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                      <GoalProgress
+                        goalId={g.id}
+                        progressType={g.progress_type}
+                        currentValue={g.current_value}
+                        targetValue={g.target_value}
+                        unit={g.unit}
+                        color={color}
+                        milestones={g.goal_milestones ?? []}
+                      />
                     </div>
                   </div>
                 </div>

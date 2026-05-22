@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { Plus, Timer } from "lucide-react";
+import { Timer } from "lucide-react";
+import { LogTime } from "./LogTime";
 
 export const revalidate = 0;
 
@@ -33,7 +34,7 @@ export default async function TiempoPage() {
             <p className="eyebrow mb-2">12 · TIEMPO</p>
             <h1 className="page-title">Tiempo.</h1>
           </div>
-          <button className="btn btn-primary btn-sm"><Plus size={14} /> Log</button>
+          <LogTime />
         </div>
       </div>
 
@@ -101,7 +102,10 @@ export default async function TiempoPage() {
         <div className="card">
           <p className="eyebrow mb-4">Sesiones recientes</p>
           {(logs ?? []).length === 0 ? (
-            <p className="tick text-center py-6">Sin logs registrados</p>
+            <div className="text-center py-6">
+              <p className="tick mb-4">Sin logs registrados</p>
+              <LogTime label="Registrar sesión" />
+            </div>
           ) : (
             <div className="flex flex-col gap-1">
               {(logs ?? []).slice(0, 20).map((l) => (

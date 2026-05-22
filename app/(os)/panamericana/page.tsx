@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import { Plus, BookOpen, Clock, AlertCircle } from "lucide-react";
+import { BookOpen, AlertCircle } from "lucide-react";
+import { AddCourse } from "./AddCourse";
+import { AddAssignment } from "./AddAssignment";
 import type { AcademicCourse, Assignment } from "@/lib/supabase/types";
 
 export const revalidate = 0;
@@ -51,8 +53,8 @@ export default async function PanamericanaPage() {
             <h1 className="page-title">Panamericana.</h1>
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-            <button className="btn btn-ghost btn-sm"><Plus size={13} /> Materia</button>
-            <button className="btn btn-ghost btn-sm"><Plus size={13} /> Entrega</button>
+            <AddCourse />
+            <AddAssignment courses={(courses ?? []).map((c) => ({ id: c.id, name: c.name }))} />
           </div>
         </div>
       </div>
@@ -140,8 +142,8 @@ export default async function PanamericanaPage() {
         {(courses ?? []).length === 0 ? (
           <div className="card text-center py-12">
             <BookOpen size={32} style={{ color: "var(--mute-2)", margin: "0 auto 12px" }} />
-            <p style={{ color: "var(--mute)", fontSize: 14 }}>Sin materias registradas</p>
-            <button className="btn btn-primary btn-sm mt-4"><Plus size={13} /> Agregar materia</button>
+            <p style={{ color: "var(--mute)", fontSize: 14, marginBottom: 16 }}>Sin materias registradas</p>
+            <AddCourse variant="primary" label="Agregar materia" />
           </div>
         ) : (
           <div>

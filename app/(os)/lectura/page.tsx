@@ -1,15 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
-import { Plus, BookOpen } from "lucide-react";
+import { BookOpen } from "lucide-react";
+import { AddReading } from "./AddReading";
+import { ReadingStatus } from "./ReadingStatus";
 import type { ReadingItem } from "@/lib/supabase/types";
 
 export const revalidate = 0;
-
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  pending: { label: "Por leer", color: "var(--mute)" },
-  reading: { label: "Leyendo", color: "var(--gold)" },
-  done: { label: "Leído", color: "var(--green)" },
-  archived: { label: "Archivado", color: "var(--mute-2)" },
-};
 
 const TYPE_ICONS: Record<string, string> = {
   article: "📄", video: "📹", podcast: "🎧", paper: "📃", book: "📚", other: "🔗",
@@ -37,7 +32,7 @@ export default async function LecturaPage() {
             <p className="eyebrow mb-2">11 · LECTURAS</p>
             <h1 className="page-title">Lectura.</h1>
           </div>
-          <button className="btn btn-primary btn-sm"><Plus size={14} /> Agregar</button>
+          <AddReading />
         </div>
       </div>
 
@@ -60,7 +55,8 @@ export default async function LecturaPage() {
           <div className="card text-center py-12">
             <BookOpen size={32} style={{ color: "var(--mute-2)", margin: "0 auto 12px" }} />
             <p style={{ color: "var(--mute)", fontSize: 14 }}>Reading list vacía</p>
-            <p className="tick mt-1">Agrega artículos, videos y libros que quieras consumir</p>
+            <p className="tick mt-1 mb-4">Agrega artículos, videos y libros que quieras consumir</p>
+            <AddReading label="Agregar primero" />
           </div>
         ) : (
           <>
@@ -98,7 +94,6 @@ export default async function LecturaPage() {
 }
 
 function ReadingCard({ item }: { item: ReadingItem }) {
-  const status = STATUS_CONFIG[item.status] ?? { label: item.status, color: "var(--mute)" };
   return (
     <div className="note-item">
       <span style={{ fontSize: 18, flexShrink: 0 }}>{TYPE_ICONS[item.type] ?? "🔗"}</span>
@@ -117,9 +112,7 @@ function ReadingCard({ item }: { item: ReadingItem }) {
           </div>
         </div>
         <div className="flex items-center gap-2 mt-2">
-          <span className="tag" style={{ borderColor: status.color, color: status.color, fontSize: 10 }}>
-            {status.label}
-          </span>
+          <ReadingStatus id={item.id} status={item.status} />
           {item.estimated_minutes && (
             <span className="tick" style={{ fontSize: 10 }}>⏱ {item.estimated_minutes}min</span>
           )}
