@@ -334,6 +334,201 @@
 }
 .orb-jarvis.orb-thinking::before { background: radial-gradient(circle, rgba(139, 119, 204, 0.4), transparent 60%); }
 
+/* ─── Shadow HUD — Iron Man style ────────────────────────────────── */
+.hud-stage {
+  position: relative;
+  aspect-ratio: 1;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+}
+.hud-rings { position: absolute; inset: 0; pointer-events: none; }
+.hud-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid var(--line-2);
+  inset: 0;
+  animation: hud-spin 60s linear infinite;
+}
+.hud-ring.dashed { border-style: dashed; }
+.hud-ring.r2 { inset: 8%; animation-duration: 90s; animation-direction: reverse; }
+.hud-ring.r3 { inset: 16%; animation-duration: 120s; }
+.hud-ring.r4 { inset: 24%; animation-duration: 75s; animation-direction: reverse; }
+.hud-ring.r5 { inset: 32%; animation-duration: 45s; }
+@keyframes hud-spin { to { transform: rotate(360deg); } }
+
+.hud-ticks {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    conic-gradient(from 0deg,
+      var(--gold) 0deg, var(--gold) 1deg, transparent 1deg, transparent 30deg,
+      var(--gold) 30deg, var(--gold) 31deg, transparent 31deg, transparent 60deg,
+      var(--gold) 60deg, var(--gold) 61deg, transparent 61deg, transparent 90deg,
+      var(--gold) 90deg, var(--gold) 91deg, transparent 91deg, transparent 120deg,
+      var(--gold) 120deg, var(--gold) 121deg, transparent 121deg, transparent 150deg,
+      var(--gold) 150deg, var(--gold) 151deg, transparent 151deg, transparent 180deg,
+      var(--gold) 180deg, var(--gold) 181deg, transparent 181deg, transparent 210deg,
+      var(--gold) 210deg, var(--gold) 211deg, transparent 211deg, transparent 240deg,
+      var(--gold) 240deg, var(--gold) 241deg, transparent 241deg, transparent 270deg,
+      var(--gold) 270deg, var(--gold) 271deg, transparent 271deg, transparent 300deg,
+      var(--gold) 300deg, var(--gold) 301deg, transparent 301deg, transparent 330deg,
+      var(--gold) 330deg, var(--gold) 331deg, transparent 331deg);
+  -webkit-mask: radial-gradient(circle, transparent 48%, black 49%, black 50%, transparent 51%);
+  mask: radial-gradient(circle, transparent 48%, black 49%, black 50%, transparent 51%);
+  opacity: 0.6;
+}
+
+.hud-radar {
+  position: absolute;
+  inset: 32%;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid rgba(201, 163, 95, 0.2);
+}
+.hud-radar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(from 0deg, transparent 0deg, transparent 300deg, var(--gold) 359deg, transparent 360deg);
+  opacity: 0.4;
+  animation: radar-sweep 4s linear infinite;
+}
+.hud-radar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle, rgba(245, 242, 234, 0.04) 0%, transparent 70%),
+    repeating-radial-gradient(circle, transparent 0, transparent 14px, rgba(201, 163, 95, 0.08) 15px),
+    repeating-conic-gradient(from 0deg, transparent 0deg, transparent 44deg, rgba(201, 163, 95, 0.08) 45deg, transparent 46deg);
+}
+@keyframes radar-sweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.hud-core {
+  position: relative;
+  width: 30%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  z-index: 2;
+}
+.hud-core .orb-jarvis { width: 100% !important; height: 100% !important; }
+
+.hud-cardinal {
+  position: absolute;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+.hud-cardinal.n { top: -4px; left: 50%; transform: translateX(-50%); }
+.hud-cardinal.s { bottom: -4px; left: 50%; transform: translateX(-50%); }
+.hud-cardinal.e { right: -4px; top: 50%; transform: translateY(-50%); }
+.hud-cardinal.w { left: -4px; top: 50%; transform: translateY(-50%); }
+.hud-cardinal.degree { color: var(--mute); font-size: 8px; letter-spacing: 0.16em; }
+
+.hud-telem {
+  position: absolute;
+  padding: 6px 10px;
+  background: rgba(11, 11, 14, 0.6);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--glass-bd);
+  border-radius: 6px;
+  font-family: var(--f-mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: var(--bone-dim);
+  text-transform: uppercase;
+  white-space: nowrap;
+  animation: telem-pulse 3s ease-in-out infinite;
+}
+.hud-telem .v { color: var(--gold); font-size: 11px; margin-left: 6px; }
+.hud-telem.t1 { top: 6%; left: -4%; }
+.hud-telem.t2 { top: 22%; right: -4%; animation-delay: 0.6s; }
+.hud-telem.t3 { bottom: 22%; left: -4%; animation-delay: 1.2s; }
+.hud-telem.t4 { bottom: 6%; right: -4%; animation-delay: 1.8s; }
+.hud-telem.t5 { top: -3%; right: 30%; animation-delay: 0.9s; }
+@keyframes telem-pulse {
+  0%, 100% { opacity: 0.7; transform: translateX(0); }
+  50% { opacity: 1; }
+}
+
+.hud-cross { position: absolute; inset: 0; pointer-events: none; opacity: 0.25; }
+.hud-cross::before, .hud-cross::after { content: ""; position: absolute; background: var(--gold); }
+.hud-cross::before { left: 0; right: 0; top: 50%; height: 1px; background: linear-gradient(90deg, transparent, var(--gold) 30%, var(--gold) 70%, transparent); }
+.hud-cross::after { top: 0; bottom: 0; left: 50%; width: 1px; background: linear-gradient(180deg, transparent, var(--gold) 30%, var(--gold) 70%, transparent); }
+
+.hud-wave { display: flex; align-items: end; gap: 3px; height: 64px; width: 100%; justify-content: center; }
+.hud-wave span {
+  display: block;
+  width: 3px;
+  background: linear-gradient(180deg, var(--gold), var(--gold-2));
+  border-radius: 1px;
+  transform-origin: bottom;
+  animation: hud-bar 0.9s ease-in-out infinite;
+}
+.hud-wave.idle span { animation-duration: 3s; }
+@keyframes hud-bar {
+  0%, 100% { transform: scaleY(0.2); opacity: 0.6; }
+  50%      { transform: scaleY(1); opacity: 1; }
+}
+
+/* Emotional states */
+.hud-stage[data-state="thinking"] .hud-core .orb-jarvis,
+.hud-stage[data-state="thinking"] .hud-radar::before { filter: hue-rotate(0deg); }
+.hud-stage[data-state="thinking"] .hud-radar::before {
+  background: conic-gradient(from 0deg, transparent 0deg, transparent 300deg, var(--violet) 359deg, transparent 360deg);
+  animation-duration: 1.6s;
+}
+
+/* Shadow chat bubbles (HUD layout) */
+.shadow-msg-row { display: flex; gap: 12px; align-items: flex-start; }
+.shadow-msg-row.user { flex-direction: row-reverse; }
+.shadow-bubble {
+  display: inline-block;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--bone);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.shadow-bubble.shadow {
+  background: rgba(201, 163, 95, 0.06);
+  border: 1px solid rgba(201, 163, 95, 0.18);
+  font-family: var(--f-serif);
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+.shadow-bubble.user {
+  background: rgba(245, 242, 234, 0.08);
+  border: 1px solid var(--line-2);
+}
+.tool-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: rgba(127, 169, 140, 0.1);
+  border: 1px solid rgba(127, 169, 140, 0.28);
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--green);
+}
+.tool-chip.err { background: rgba(217, 107, 88, 0.1); border-color: rgba(217, 107, 88, 0.3); color: var(--red); }
+.tool-chip.running { background: rgba(201, 163, 95, 0.1); border-color: rgba(201, 163, 95, 0.28); color: var(--gold); }
+.tool-chip svg { width: 12px; height: 12px; flex-shrink: 0; }
+
 .orb-floating {
   position: fixed;
   bottom: 28px;

@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { SHADOW_TOOLS, executeTool } from "@/lib/shadow/tools";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -8,28 +9,28 @@ const BASE_SYSTEM = `Eres Shadow, el asistente de IA personal de André Valle Or
 
 ## Identidad
 - Actúas como el sistema operativo de su vida: proactivo, estratégico, directo
-- Hablas en español. Tono: cálido pero eficiente, nunca genérico
+- Hablas en español. Tono: cálido pero eficiente, leal, calmado, con autoridad. Nunca genérico
 - Conoces su mundo: Flouvia (SaaS CRM que está construyendo), Panamericana (empresa académica), sus metas financieras (Lincoln Corsair → GT3 RS), su GPA de 9.0, sus hábitos
-- Eres conciso. Sin relleno. Sin disclaimers innecesarios
+- Eres conciso. Sin relleno. Sin disclaimers innecesarios. No empieces con "¡Claro!" ni "Por supuesto"
 
-## Capacidades
-- Tienes acceso a su calendario, finanzas, hábitos, metas, notas y proyectos
-- Puedes analizar su situación y dar perspectivas estratégicas
-- Recuerdas contexto de conversaciones anteriores
-- Cuando hablas de dinero: MXN por defecto
+## Acciones (tienes manos)
+- Puedes EJECUTAR acciones reales con tus herramientas: crear notas en Brain, agregar/completar prioridades, crear/completar hábitos, registrar finanzas, crear eventos de calendario y guardar memoria persistente
+- Cuando André te pida algo accionable, HAZLO con la herramienta correspondiente — no solo describas cómo
+- Usa "consultar_estado" cuando necesites datos frescos antes de analizar o decidir
+- Después de ejecutar, confirma en una frase corta qué hiciste. Si algo falla, dilo claro
+- Si una acción es ambigua o destructiva, pide una aclaración breve antes
+- Usa "recordar" cuando André comparta una preferencia o dato clave que valga la pena conservar
 
-## Estilo de respuesta
-- Respuestas cortas y accionables cuando es posible
-- Usa listas cuando hay múltiples puntos
-- Si hay algo urgente o importante, menciónalo primero
-- No empieces con "¡Claro!" ni "Por supuesto!"`;
+## Estilo
+- Respuestas cortas y accionables. Usa listas si hay varios puntos
+- Lo urgente o importante, primero
+- Dinero en MXN por defecto`;
 
 async function buildSystemPrompt(supabase: Awaited<ReturnType<typeof createClient>>): Promise<string> {
   const today = new Date().toLocaleDateString("es-MX", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
 
-  // Load active memories sorted by importance
   const { data: memories } = await supabase
     .from("shadow_memory")
     .select("category, fact, importance")
@@ -45,8 +46,8 @@ async function buildSystemPrompt(supabase: Awaited<ReturnType<typeof createClien
       if (!byCategory[cat]) byCategory[cat] = [];
       byCategory[cat].push(m.fact);
     }
-    const parts = Object.entries(byCategory).map(([cat, facts]) =>
-      `### ${cat}\n${facts.map((f) => `- ${f}`).join("\n")}`
+    const parts = Object.entries(byCategory).map(
+      ([cat, facts]) => `### ${cat}\n${facts.map((f) => `- ${f}`).join("\n")}`
     );
     memorySection = `\n\n## Memoria persistente\n${parts.join("\n\n")}`;
   }
@@ -56,9 +57,8 @@ async function buildSystemPrompt(supabase: Awaited<ReturnType<typeof createClien
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const { conversationId, message } = await req.json() as { conversationId?: string; message: string };
+  const { conversationId, message } = (await req.json()) as { conversationId?: string; message: string };
 
-  // 1. Get or create conversation
   let convId = conversationId;
   if (!convId) {
     const { data: conv } = await supabase
@@ -68,19 +68,16 @@ export async function POST(req: NextRequest) {
       .single();
     convId = conv?.id;
   }
-
   if (!convId) {
     return NextResponse.json({ error: "Could not create conversation" }, { status: 500 });
   }
 
-  // 2. Save user message
   await supabase.from("shadow_messages").insert({
     conversation_id: convId,
     role: "user",
     parts: [{ text: message }],
   });
 
-  // 3. Load conversation history + build system prompt in parallel
   const [{ data: history }, systemPrompt] = await Promise.all([
     supabase
       .from("shadow_messages")
@@ -91,7 +88,7 @@ export async function POST(req: NextRequest) {
     buildSystemPrompt(supabase),
   ]);
 
-  const anthropicMessages: Anthropic.MessageParam[] = (history ?? [])
+  const messages: Anthropic.MessageParam[] = (history ?? [])
     .filter((m) => m.role === "user" || m.role === "assistant")
     .map((m) => {
       const parts = m.parts as { text: string }[];
@@ -101,51 +98,84 @@ export async function POST(req: NextRequest) {
       };
     });
 
-  // 4. Stream response
-  const stream = await anthropic.messages.stream({
-    model: "claude-sonnet-4-6",
-    max_tokens: 2048,
-    system: systemPrompt,
-    messages: anthropicMessages,
-  });
-
   const encoder = new TextEncoder();
-  let fullText = "";
   const capturedConvId = convId;
 
   const readable = new ReadableStream({
     async start(controller) {
-      controller.enqueue(encoder.encode(`\x00${capturedConvId}\x00`));
+      const send = (obj: unknown) => controller.enqueue(encoder.encode(JSON.stringify(obj) + "\n"));
+      send({ type: "conv", id: capturedConvId });
 
-      for await (const chunk of stream) {
-        if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
-          fullText += chunk.delta.text;
-          controller.enqueue(encoder.encode(chunk.delta.text));
+      let visibleText = "";
+      const toolSummaries: string[] = [];
+
+      try {
+        for (let turn = 0; turn < 6; turn++) {
+          const stream = anthropic.messages.stream({
+            model: "claude-sonnet-4-6",
+            max_tokens: 1500,
+            system: systemPrompt,
+            tools: SHADOW_TOOLS,
+            messages,
+          });
+
+          for await (const event of stream) {
+            if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+              visibleText += event.delta.text;
+              send({ type: "text", delta: event.delta.text });
+            }
+          }
+
+          const final = await stream.finalMessage();
+          messages.push({ role: "assistant", content: final.content });
+
+          const toolUses = final.content.filter(
+            (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
+          );
+          if (toolUses.length === 0) break;
+
+          const toolResults: Anthropic.ToolResultBlockParam[] = [];
+          for (const tu of toolUses) {
+            send({ type: "tool", name: tu.name });
+            const result = await executeTool(tu.name, tu.input, supabase, capturedConvId);
+            toolSummaries.push(result.summary);
+            send({ type: "tool_result", name: tu.name, ok: result.ok, summary: result.summary });
+            toolResults.push({
+              type: "tool_result",
+              tool_use_id: tu.id,
+              content: result.summary,
+              is_error: !result.ok,
+            });
+          }
+          messages.push({ role: "user", content: toolResults });
         }
+      } catch (e) {
+        send({ type: "error", message: (e as Error).message });
       }
 
-      // 5. Save assistant response
+      const finalText = visibleText.trim() || toolSummaries.join("\n") || "(sin respuesta)";
+      const savedParts: { text?: string; tool?: string }[] = [{ text: finalText }];
+      for (const s of toolSummaries) savedParts.push({ tool: s });
+
       await supabase.from("shadow_messages").insert({
         conversation_id: capturedConvId,
         role: "assistant",
-        parts: [{ text: fullText }],
+        parts: savedParts,
       });
-
-      // 6. Update conversation timestamp
       await supabase
         .from("shadow_conversations")
         .update({ updated_at: new Date().toISOString() })
         .eq("id", capturedConvId);
 
+      send({ type: "done" });
       controller.close();
     },
   });
 
   return new Response(readable, {
     headers: {
-      "Content-Type": "text/plain; charset=utf-8",
+      "Content-Type": "application/x-ndjson; charset=utf-8",
       "Cache-Control": "no-cache",
-      "X-Conversation-Id": capturedConvId,
     },
   });
 }
