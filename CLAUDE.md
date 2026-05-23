@@ -28,32 +28,33 @@ El archivo se llama `proxy.ts` (no `middleware.ts`) — Next.js 16 renombró la 
 
 ## Shell — Arquitectura del layout
 
-### Grid
+### Grid (2 filas — el ticker vive DENTRO del topbar)
 ```
 ┌─────────────────────────────────┐
 │ SIDEBAR (260px) │   TOPBAR      │  ← row 1: 56px
+│                 │  [⌘K] ticker  │     (3 cols: kbd | ticker scroll | widgets)
 │                 │─────────────── │
-│                 │   TICKER      │  ← row 2: 36px
-│                 │─────────────── │
-│                 │   CONTENT     │  ← row 3: flex-1
+│                 │   CONTENT     │  ← row 2: flex-1
 └─────────────────────────────────┘
 ```
-CSS grid: `grid-template-columns: var(--sidebar-w) 1fr` · `grid-template-rows: var(--topbar-h) var(--ticker-h) 1fr`
+CSS grid: `grid-template-columns: var(--sidebar-w) 1fr` · `grid-template-rows: var(--topbar-h) 1fr`. El topbar es un grid de 3 columnas (`auto 1fr auto`): chips de teclado | ticker scrollable | widgets.
 
 ### Componentes del shell
 | Archivo | Descripción |
 |---------|-------------|
-| `components/shell/Topbar.tsx` | Barra superior: chips ⌘K ⌘J ⌘., botones Silencio / Ajustes, campana |
-| `components/shell/Sidebar.tsx` | Nav lateral: items numerados (00–13), search box, colapso por sección |
-| `components/shell/Ticker.tsx` | Franja de métricas en vivo (MRR, hábitos, racha, GPA, CDMX) |
+| `components/shell/Topbar.tsx` | Barra superior 3-col: chips `⌘K ⌘J ⌘.` · ticker scrollable con métricas reales (MRR/GPA/hábitos/racha) · widgets CDMX/Silencio/Ajustes/campana. El ticker se fusionó aquí (ya no hay `Ticker.tsx` separado) |
+| `components/shell/Sidebar.tsx` | Nav lateral: brand serif `VALLE·`, search, secciones colapsables, footer con avatar |
 | `components/shell/LockScreen.tsx` | PIN 4 dígitos (SHA-256 → localStorage) + WebAuthn biométrico |
 | `components/shell/CmdK.tsx` | Paleta de comandos (⌘K) — usa `cmdk` |
 | `components/shell/CaptureModal.tsx` | Modal de captura rápida (⌘J) |
 | `components/shell/CierreFlow.tsx` | Flujo de cierre nocturno (⌘.) |
 | `components/shell/AjustesDrawer.tsx` | Drawer de ajustes — temas, fuente, acento |
-| `components/shell/AmbientBG.tsx` | Blobs animados de fondo |
+| `components/shell/AmbientBG.tsx` | Fondo: un solo `<div className="ambient">` con gradientes radiales CSS + grano (`::after`), animado con `ambient-drift`. Sin blobs |
 | `components/shell/FocusBanner.tsx` | Banner de modo foco (barra dorada) |
-| `components/shell/OrbFloating.tsx` | Botón flotante de Shadow (mobile) |
+| `components/shell/OrbFloating.tsx` | Botón flotante de Shadow — renderiza `<Orb>` (orb-jarvis) |
+| `components/shell/ShadowOrb.tsx` | Presencia limpia de Shadow: orb grande + aura difuminada (idle dorado / thinking morado) |
+| `components/Orb.tsx` | Orb reutilizable estilo Jarvis (clase `.orb-jarvis`, `--orb-size`), estados `idle`/`thinking` |
+| `components/Modal.tsx` | Modal + `Field` reutilizables. Patrón de islas: modal → insert a Supabase → `router.refresh()` |
 
 ### Shortcuts del Topbar
 - `⌘K` → CmdK (búsqueda global)
@@ -105,7 +106,15 @@ Todas las páginas usan este patrón:
 --green, --red, --blue, --violet           /* semánticos */
 --glass-bg, --glass-bd                     /* glass morphism */
 --glass-bg-2, --glass-bd-2                /* glass más denso */
+--line, --line-2                           /* bordes sutiles (topbar, sidebar, modales, cards) */
 ```
+
+### Clases útiles nuevas
+- `.orb-jarvis` — orb premium (gradiente con luz + halo), tamaño vía `--orb-size`
+- `.modal-backdrop` / `.modal-card` / `.modal-field` — modales (ver `components/Modal.tsx`)
+- `.hb-*` — tracker de Hábitos v2 (stats, calendario heatmap, toggles, strips)
+- `.kpi-strip` / `.kpi-cell` — tira de métricas (Brief)
+- `.tool-chip` — chips de acciones de Shadow (running/ok/err)
 
 ### Temas disponibles
 `oro-negro` (default) · `marea-fria` · `bosque` · `sangre` · `papel` · `cosmos`
@@ -122,13 +131,14 @@ Todas las páginas usan este patrón:
 
 ---
 
-## Shadow — Agente Personal
-- **Ruta**: `app/(os)/shadow/page.tsx` — chat de dos paneles: historial de conversaciones (220px) + chat
-- **API**: `app/api/shadow/route.ts` — streaming con prefijo `\x00{convId}\x00` al inicio del stream
+## Shadow — Agente Personal (Jarvis con manos)
+- **Ruta**: `app/(os)/shadow/page.tsx` — layout 2 columnas: presencia (orb limpio + waveform + telemetría en pills + tags) | conversación (chat con historial en dropdown). Prompts rápidos abajo
+- **API**: `app/api/shadow/route.ts` — loop agéntico con **tool use** de Anthropic. Streaming **NDJSON** (un JSON por línea): eventos `{type:"conv"|"text"|"tool"|"tool_result"|"error"|"done"}`
 - **Modelo**: `claude-sonnet-4-6`
-- **Memoria**: tabla `shadow_memory` en Supabase → se inyecta en system prompt como `## Memoria persistente`
-- **Briefing cache**: tabla `shadow_cache`, key `brief:{YYYY-MM-DD}` → se muestra en Brief page
-- **Streaming**: el cliente extrae el convId del prefijo y acumula el texto en el state
+- **Herramientas** (`lib/shadow/tools.ts` → `SHADOW_TOOLS` + `executeTool`): Shadow EJECUTA acciones reales en Supabase. 9 tools: `consultar_estado`, `crear_nota`, `agregar_prioridad`, `completar_prioridad`, `crear_habito`, `completar_habito`, `registrar_finanza`, `recordar`, `crear_evento` (Google Calendar). Cada una devuelve `{ok, summary}` que se muestra como chip en vivo y se manda como `tool_result` a Claude
+- **Memoria**: tabla `shadow_memory` → se inyecta en system prompt como `## Memoria persistente`. El tool `recordar` escribe aquí
+- **Mensajes guardados**: `shadow_messages.parts` = `[{text}, {tool}...]` (texto + resúmenes de acciones). El cliente parsea NDJSON y reconstruye texto + chips al recargar
+- **Brief del día**: `app/api/shadow/brief/route.ts` (POST) — genera el brief analizando datos del día, lo cachea en `shadow_cache` key `brief:{YYYY-MM-DD}`. Se dispara desde el botón en Brief
 
 ---
 
@@ -155,20 +165,19 @@ Schema completo en `supabase/schema.sql` — correr en Supabase SQL Editor para 
 
 ---
 
-## Páginas — Qué son server vs client
-| Server components | Client components |
+## Páginas — server shell + islas cliente
+Patrón: la página es **server component** (SSR, carga datos) y las acciones interactivas son **islas cliente** (`"use client"`) que escriben a Supabase y llaman `router.refresh()`. Ejemplos de islas: `finanzas/AddEntry`, `flouvia/AddClient`, `metas/AddGoal`+`GoalProgress`, `salud/LogHealth`, `lectura/AddReading`+`ReadingStatus`, `tiempo/LogTime`, `panamericana/AddCourse`+`AddAssignment`.
+
+| Server (con islas cliente) | Client components completos |
 |---|---|
-| brief, finanzas, flouvia, metas, panamericana, salud, lectura, tiempo, centro | shadow, habitos, brain, paginas, config, calendario |
+| finanzas, flouvia, metas, panamericana, salud, lectura, tiempo, centro | brief (`BriefClient`), shadow, habitos, brain, paginas, config, calendario |
 
----
+**Qué guarda cada página** (todo persiste a Supabase):
+- **Brief**: prioridades (check/agregar/borrar), intención editable, toggle de hábitos, brief generado por Shadow, agenda del día
+- **Hábitos v2**: tracker diario con check-off satisfactorio (anillo de progreso), calendario heatmap mensual (perfecto/parcial/fallado), stats de racha actual/mejor/% del mes/días perfectos, y strip de 30 días por hábito. Permite backfill clickeando días pasados del calendario
+- **Finanzas/Flouvia/Metas/Salud/Lectura/Tiempo/Panamericana**: crear registros + acciones (progreso de metas, ciclo de estado en lectura)
 
-## Ticker — Métricas en vivo
-`components/shell/Ticker.tsx` fetcha de Supabase al montar:
-- **MRR**: `flouvia_clients.monthly_value` donde `status = 'activo'`
-- **Hábitos**: `habit_completions` del día vs total de `habits` activos
-- **Racha**: max streak de los últimos 7 días
-- **GPA**: promedio de `academic_courses.grade` donde grade no es null
-- **CDMX**: placeholder estático (no hay API de clima conectada aún)
+El **ticker** del topbar (en `Topbar.tsx`) fetcha al montar: MRR (`flouvia_clients.monthly_value` activos), hábitos del día, racha 7d, GPA (`academic_courses.grade`). CDMX es placeholder estático.
 
 ---
 
