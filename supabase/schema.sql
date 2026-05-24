@@ -3,6 +3,11 @@
 -- ⚠️  This script drops and recreates all tables (safe for fresh setup)
 
 -- Drop old tables in reverse dependency order
+drop table if exists workout_sets cascade;
+drop table if exists workout_sessions cascade;
+drop table if exists workout_exercises cascade;
+drop table if exists workout_days cascade;
+drop table if exists workout_routines cascade;
 drop table if exists goal_milestones cascade;
 drop table if exists goals cascade;
 drop table if exists custom_pages cascade;
@@ -510,6 +515,66 @@ create table reading_items (
   completed_at timestamptz
 );
 
+-- ── Gym / Entrenamiento ──────────────────────────────────────────────────
+create table workout_routines (
+  id uuid primary key default uuid_generate_v4(),
+  name text not null,
+  active boolean not null default true,
+  notes text,
+  sort_order int not null default 0,
+  created_at timestamptz default now()
+);
+
+create table workout_days (
+  id uuid primary key default uuid_generate_v4(),
+  routine_id uuid not null references workout_routines(id) on delete cascade,
+  name text not null,
+  day_order int not null default 0,
+  muscle_groups text[] not null default '{}',
+  created_at timestamptz default now()
+);
+
+create table workout_exercises (
+  id uuid primary key default uuid_generate_v4(),
+  day_id uuid not null references workout_days(id) on delete cascade,
+  name text not null,
+  muscle_group text,
+  target_sets int not null default 3,
+  target_reps text,
+  sort_order int not null default 0,
+  created_at timestamptz default now()
+);
+
+create table workout_sessions (
+  id uuid primary key default uuid_generate_v4(),
+  date date not null default current_date,
+  routine_id uuid references workout_routines(id) on delete set null,
+  day_id uuid references workout_days(id) on delete set null,
+  day_name text,
+  duration_minutes int,
+  bodyweight_kg numeric(5,2),
+  notes text,
+  created_at timestamptz default now()
+);
+
+create table workout_sets (
+  id uuid primary key default uuid_generate_v4(),
+  session_id uuid not null references workout_sessions(id) on delete cascade,
+  exercise_id uuid references workout_exercises(id) on delete set null,
+  exercise_name text not null,
+  muscle_group text,
+  set_number int not null default 1,
+  weight_kg numeric(6,2),
+  reps int,
+  rpe numeric(3,1),
+  created_at timestamptz default now()
+);
+
+create index on workout_days (routine_id, day_order);
+create index on workout_exercises (day_id, sort_order);
+create index on workout_sessions (date desc);
+create index on workout_sets (session_id);
+
 -- ── Custom pages ───────────────────────────────────────────────────────────
 create table custom_pages (
   id uuid primary key default uuid_generate_v4(),
@@ -559,6 +624,11 @@ alter table time_blocks enable row level security;
 alter table time_logs enable row level security;
 alter table reading_items enable row level security;
 alter table custom_pages enable row level security;
+alter table workout_routines enable row level security;
+alter table workout_days enable row level security;
+alter table workout_exercises enable row level security;
+alter table workout_sessions enable row level security;
+alter table workout_sets enable row level security;
 
 -- Allow all operations for authenticated users (personal app, single user)
 do $$
@@ -571,7 +641,8 @@ declare
     'flouvia_clients','flouvia_contacts','flouvia_followups','flouvia_projects','flouvia_invoices',
     'shadow_conversations','shadow_messages','shadow_cache','shadow_memory','notifications',
     'brain_notes','semesters','academic_courses','academic_exams','assignments','class_schedule',
-    'health_entries','goals','goal_milestones','time_blocks','time_logs','reading_items','custom_pages'
+    'health_entries','goals','goal_milestones','time_blocks','time_logs','reading_items','custom_pages',
+    'workout_routines','workout_days','workout_exercises','workout_sessions','workout_sets'
   ];
 begin
   foreach tbl in array tables loop
@@ -590,7 +661,8 @@ declare
     'flouvia_clients','flouvia_contacts','flouvia_followups','flouvia_projects','flouvia_invoices',
     'shadow_conversations','shadow_messages','shadow_cache','shadow_memory','notifications',
     'brain_notes','semesters','academic_courses','academic_exams','assignments','class_schedule',
-    'health_entries','goals','goal_milestones','time_blocks','time_logs','reading_items','custom_pages'
+    'health_entries','goals','goal_milestones','time_blocks','time_logs','reading_items','custom_pages',
+    'workout_routines','workout_days','workout_exercises','workout_sessions','workout_sets'
   ];
 begin
   foreach tbl in array tables loop

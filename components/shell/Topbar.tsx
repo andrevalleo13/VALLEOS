@@ -11,6 +11,7 @@ type TickerData = {
   habitsTotal: number;
   gpa: number | null;
   streak: number;
+  gymWeek: number;
 };
 
 export function Topbar() {
@@ -55,13 +56,14 @@ export function Topbar() {
         .toISOString()
         .split("T")[0];
 
-      const [clientsRes, habitsRes, completionsRes, historyRes, coursesRes] =
+      const [clientsRes, habitsRes, completionsRes, historyRes, coursesRes, gymRes] =
         await Promise.all([
           supabase.from("flouvia_clients").select("monthly_value").eq("status", "activo"),
           supabase.from("habits").select("id").eq("active", true),
           supabase.from("habit_completions").select("habit_id").eq("date", today),
           supabase.from("habit_completions").select("habit_id, date").gte("date", sevenDaysAgo).lte("date", today),
           supabase.from("academic_courses").select("grade").not("grade", "is", null),
+          supabase.from("workout_sessions").select("id").gte("date", sevenDaysAgo).lte("date", today),
         ]);
 
       const mrr = (clientsRes.data ?? []).reduce(
@@ -102,7 +104,9 @@ export function Topbar() {
         ? grades.reduce((a: number, b: number) => a + b, 0) / grades.length
         : null;
 
-      setData({ mrr, habitsToday, habitsTotal, gpa, streak: maxStreak });
+      const gymWeek = (gymRes.data ?? []).length;
+
+      setData({ mrr, habitsToday, habitsTotal, gpa, streak: maxStreak, gymWeek });
     }
     load();
   }, []);
@@ -121,6 +125,7 @@ export function Topbar() {
       ? `HÁBITOS ${data.habitsToday}/${data.habitsTotal}`
       : null,
     data && data.streak > 0 ? `RACHA ${data.streak}D` : null,
+    data && data.gymWeek > 0 ? `GYM ${data.gymWeek}× ESTA SEMANA` : null,
     "SHADOW ● EN LÍNEA",
     "CDMX 22°",
   ].filter(Boolean) as string[];

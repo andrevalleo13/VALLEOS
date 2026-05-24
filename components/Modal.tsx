@@ -6,10 +6,12 @@ export function Modal({
   title,
   onClose,
   children,
+  wide = false,
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  wide?: boolean;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -19,7 +21,7 @@ export function Modal({
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+      <div className={wide ? "modal-card modal-card-wide" : "modal-card"} onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <span className="eyebrow">{title}</span>
           <button className="tb-btn" style={{ width: 28, height: 28 }} onClick={onClose} aria-label="Cerrar">

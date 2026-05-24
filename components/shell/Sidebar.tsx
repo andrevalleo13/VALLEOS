@@ -37,9 +37,10 @@ const NAV_SECTIONS = [
     label: "MÁS",
     items: [
       { n: "10", label: "Salud", href: "/salud" },
-      { n: "11", label: "Lectura", href: "/lectura" },
-      { n: "12", label: "Tiempo", href: "/tiempo" },
-      { n: "13", label: "Páginas", href: "/paginas" },
+      { n: "11", label: "Gym", href: "/gym" },
+      { n: "12", label: "Lectura", href: "/lectura" },
+      { n: "13", label: "Tiempo", href: "/tiempo" },
+      { n: "14", label: "Páginas", href: "/paginas" },
     ],
   },
 ];

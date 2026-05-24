@@ -6,7 +6,7 @@ import { useAppStore } from "@/lib/store";
 import {
   Home, Grid3x3, Sparkles, DollarSign, Brain, Calendar,
   CheckSquare, Target, Briefcase, BookOpen, Heart, Clock,
-  FileText, Settings, Moon, Plus, Search, Zap
+  FileText, Settings, Moon, Plus, Search, Zap, Dumbbell
 } from "lucide-react";
 
 const COMMANDS = [
@@ -22,6 +22,7 @@ const COMMANDS = [
     { label: "Flouvia", icon: Briefcase, href: "/flouvia" },
     { label: "Panamericana", icon: BookOpen, href: "/panamericana" },
     { label: "Salud", icon: Heart, href: "/salud" },
+    { label: "Gym", icon: Dumbbell, href: "/gym" },
     { label: "Lectura", icon: BookOpen, href: "/lectura" },
     { label: "Tiempo", icon: Clock, href: "/tiempo" },
     { label: "Páginas", icon: FileText, href: "/paginas" },

@@ -2472,3 +2472,149 @@ body {
   background: var(--gold-glow);
   color: var(--bone);
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   GYM · Entrenamiento (módulo 14)
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Modal ancho + scroll para formularios largos */
+.modal-card-wide { width: min(720px, 94vw); }
+.modal-body { max-height: 80vh; overflow-y: auto; }
+
+/* Segmented control (Semana / Mes) */
+.seg {
+  display: inline-flex;
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 2px;
+  gap: 2px;
+}
+.seg-btn {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mute);
+  padding: 5px 11px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.15s var(--ease);
+}
+.seg-btn.on { background: var(--glass-bg-2); color: var(--bone); }
+.seg-btn:hover:not(.on) { color: var(--bone-dim); }
+
+/* Mapa muscular */
+.mm-wrap { display: flex; flex-direction: column; gap: 8px; }
+.mm-figures { display: flex; justify-content: center; gap: 14px; }
+.mm-figure { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+.mm-svg { width: 100%; max-width: 150px; height: auto; display: block; }
+.mm-body { fill: rgba(140,140,152,0.05); }
+.mm-base { fill: rgba(150,150,162,0.12); }
+.mm-muscle {
+  stroke: rgba(0,0,0,0.35);
+  stroke-width: 0.6;
+  transition: fill 0.5s var(--ease), opacity 0.15s var(--ease);
+  cursor: pointer;
+}
+.mm-muscle:hover { opacity: 0.82; }
+.mm-outline { fill: none; stroke: var(--line-2); stroke-width: 1; opacity: 0.5; }
+.mm-caption {
+  font-family: var(--f-mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.mm-readout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 24px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+.mm-readout-name { font-size: 13px; color: var(--bone); }
+.mm-readout-val { font-family: var(--f-mono); font-size: 12px; color: var(--gold); }
+.mm-readout-hint { font-family: var(--f-mono); font-size: 10px; color: var(--mute); letter-spacing: 0.05em; }
+
+/* Lista de ejercicios del día (today card) */
+.gym-ex-list { display: flex; flex-direction: column; gap: 2px; }
+.gym-ex-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 4px;
+  border-bottom: 1px solid var(--line);
+}
+.gym-ex-row:last-child { border-bottom: 0; }
+.gym-ex-name { font-size: 14px; color: var(--bone-dim); }
+.gym-ex-target { font-family: var(--f-mono); font-size: 12px; color: var(--mute); }
+
+/* Barras de volumen por músculo */
+.gym-bars { display: flex; flex-direction: column; gap: 9px; }
+.gym-bar-row { display: flex; align-items: center; gap: 12px; }
+.gym-bar-label { width: 92px; flex-shrink: 0; font-size: 13px; color: var(--bone-dim); }
+.gym-bar-track { flex: 1; height: 10px; background: var(--bg-card); border-radius: 6px; overflow: hidden; }
+.gym-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold-2), var(--gold));
+  border-radius: 6px;
+  transition: width 0.5s var(--ease);
+}
+.gym-bar-val { width: 28px; text-align: right; flex-shrink: 0; font-family: var(--f-mono); font-size: 12px; color: var(--bone); }
+
+/* LogSession — bloques de ejercicio + series */
+.gym-log-ex { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--glass-bg); }
+.gym-log-ex-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.gym-log-ex-name { flex: 1; font-size: 14px; color: var(--bone); }
+.gym-set-rows { display: flex; flex-direction: column; gap: 6px; }
+.gym-set-row { display: flex; align-items: center; gap: 8px; }
+.gym-set-num {
+  width: 20px; height: 20px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border-radius: 6px; background: var(--bg-card);
+  font-family: var(--f-mono); font-size: 11px; color: var(--mute);
+}
+.gym-set-input { width: 84px; text-align: center; }
+.gym-set-x { color: var(--mute); font-size: 13px; }
+.gym-set-del, .gym-add-set {
+  display: inline-flex; align-items: center; gap: 4px;
+  color: var(--mute); cursor: pointer; transition: color 0.15s var(--ease);
+  font-family: var(--f-mono); font-size: 11px;
+}
+.gym-set-del:hover { color: var(--red); }
+.gym-add-set { color: var(--gold); margin-top: 2px; align-self: flex-start; }
+.gym-add-set:hover { color: var(--gold-2); }
+
+/* RoutineEditor */
+.re-routines { display: flex; flex-wrap: wrap; gap: 8px; }
+.re-routine-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 13px; border-radius: 9px;
+  border: 1px solid var(--line); background: var(--glass-bg);
+  font-size: 13px; color: var(--bone-dim); cursor: pointer;
+  transition: all 0.15s var(--ease);
+}
+.re-routine-chip.sel { border-color: var(--glass-bd-2); background: var(--glass-bg-2); color: var(--bone); }
+.re-routine-actions { display: flex; align-items: center; gap: 8px; }
+.re-days { display: flex; flex-direction: column; gap: 14px; }
+.re-day { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--bg-card); }
+.re-day-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.re-day-name {
+  font-family: var(--f-serif); font-size: 19px; color: var(--bone);
+  background: transparent; border: none; border-bottom: 1px solid transparent; flex: 1; outline: none;
+}
+.re-day-name:focus { border-bottom-color: var(--line-2); }
+.re-muscles { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+.re-muscle {
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: 0.04em;
+  padding: 4px 9px; border-radius: 7px;
+  border: 1px solid var(--line); background: transparent; color: var(--mute); cursor: pointer;
+  transition: all 0.15s var(--ease);
+}
+.re-muscle.on { border-color: rgba(201,163,95,0.4); background: rgba(201,163,95,0.12); color: var(--gold); }
+.re-ex-list { display: flex; flex-direction: column; gap: 7px; }
+.re-ex-row, .re-ex-add { display: flex; align-items: center; gap: 6px; }
+.re-ex-add { margin-top: 4px; padding-top: 10px; border-top: 1px dashed var(--line); }

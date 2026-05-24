@@ -67,7 +67,7 @@ CSS grid: `grid-template-columns: var(--sidebar-w) 1fr` · `grid-template-rows: 
 03 Finanzas    04 Brain      05 Calendario
 06 Hábitos     07 Metas
 08 Flouvia     09 Panamericana
-10 Salud       11 Lectura    12 Tiempo    13 Páginas
+10 Salud       11 Gym        12 Lectura   13 Tiempo   14 Páginas
 ```
 
 ---
@@ -115,6 +115,11 @@ Todas las páginas usan este patrón:
 - `.hb-*` — tracker de Hábitos v2 (stats, calendario heatmap, toggles, strips)
 - `.kpi-strip` / `.kpi-cell` — tira de métricas (Brief)
 - `.tool-chip` — chips de acciones de Shadow (running/ok/err)
+- `.mm-*` — mapa muscular anatómico SVG (`components/gym/MuscleMap.tsx`)
+- `.gym-*` — dashboard de Gym (barras de volumen, filas de series, lista de ejercicios)
+- `.re-*` — editor de rutina (`RoutineEditor.tsx`): chips de rutina, días, chips de músculo, filas de ejercicio
+- `.seg` / `.seg-btn` — control segmentado (toggle Semana/Mes)
+- `.modal-card-wide` — modal ancho (720px); `Modal` acepta prop `wide`. `.modal-body` ahora hace scroll (max-height 80vh)
 
 ### Temas disponibles
 `oro-negro` (default) · `marea-fria` · `bosque` · `sangre` · `papel` · `cosmos`
@@ -135,10 +140,21 @@ Todas las páginas usan este patrón:
 - **Ruta**: `app/(os)/shadow/page.tsx` — layout 2 columnas: presencia (orb limpio + waveform + telemetría en pills + tags) | conversación (chat con historial en dropdown). Prompts rápidos abajo
 - **API**: `app/api/shadow/route.ts` — loop agéntico con **tool use** de Anthropic. Streaming **NDJSON** (un JSON por línea): eventos `{type:"conv"|"text"|"tool"|"tool_result"|"error"|"done"}`
 - **Modelo**: `claude-sonnet-4-6`
-- **Herramientas** (`lib/shadow/tools.ts` → `SHADOW_TOOLS` + `executeTool`): Shadow EJECUTA acciones reales en Supabase. 9 tools: `consultar_estado`, `crear_nota`, `agregar_prioridad`, `completar_prioridad`, `crear_habito`, `completar_habito`, `registrar_finanza`, `recordar`, `crear_evento` (Google Calendar). Cada una devuelve `{ok, summary}` que se muestra como chip en vivo y se manda como `tool_result` a Claude
+- **Herramientas** (`lib/shadow/tools.ts` → `SHADOW_TOOLS` + `executeTool`): Shadow EJECUTA acciones reales en Supabase. 11 tools: `consultar_estado` (incluye resumen de gym), `crear_nota`, `agregar_prioridad`, `completar_prioridad`, `crear_habito`, `completar_habito`, `registrar_finanza`, `consultar_rutina`, `registrar_entrenamiento`, `recordar`, `crear_evento` (Google Calendar). Cada una devuelve `{ok, summary}` que se muestra como chip en vivo y se manda como `tool_result` a Claude
 - **Memoria**: tabla `shadow_memory` → se inyecta en system prompt como `## Memoria persistente`. El tool `recordar` escribe aquí
 - **Mensajes guardados**: `shadow_messages.parts` = `[{text}, {tool}...]` (texto + resúmenes de acciones). El cliente parsea NDJSON y reconstruye texto + chips al recargar
 - **Brief del día**: `app/api/shadow/brief/route.ts` (POST) — genera el brief analizando datos del día, lo cachea en `shadow_cache` key `brief:{YYYY-MM-DD}`. Se dispara desde el botón en Brief
+
+---
+
+## Gym — Entrenamiento (módulo 11)
+- **Ruta**: `app/(os)/gym/page.tsx` (server: carga rutinas/días/ejercicios/sesiones/series de los últimos 120d) → `GymClient.tsx` (dashboard cliente que computa todo y persiste vía islas)
+- **Modelo de datos** (5 tablas): `workout_routines` (rutinas, una `active`) → `workout_days` (días con `muscle_groups[]`, `day_order` define el ciclo) → `workout_exercises` (plantilla: `target_sets`/`target_reps`/`muscle_group`). Lo registrado: `workout_sessions` (un entrenamiento, guarda `day_name` denormalizado) → `workout_sets` (peso×reps por serie, `exercise_name`/`muscle_group` denormalizados para sobrevivir ediciones)
+- **Catálogo de músculos**: `lib/gym/muscles.ts` — 13 keys canónicas (`pecho`, `espalda`, `hombros`, `biceps`, `triceps`, `antebrazo`, `abdomen`, `trapecio`, `cuadriceps`, `isquios`, `gluteos`, `pantorrillas`, `lumbar`) + `normalizeMuscle()` (sinónimos) + `muscleLabel()`
+- **Mapa muscular**: `components/gym/MuscleMap.tsx` — figuras SVG frente/espalda; cada grupo es un `<path>` coloreado por intensidad (series del período / máx). Heatmap dorado→ámbar. Hover muestra el músculo + series
+- **Dashboard** (`GymClient`): stats strip (sesiones, volumen, Δ vs período previo, series, PRs del mes) · card "Hoy toca" (día sugerido = siguiente en el ciclo tras la última sesión) · mapa muscular con toggle Semana/Mes · barras de volumen por músculo · sparklines de progresión (peso máx top 4 ejercicios) · volumen semanal 8 semanas · historial
+- **Interactivo desde la app** (no desde el chat): `LogSession.tsx` registra una sesión (elige día → prefilla ejercicios → captura series peso×reps; permite ejercicio libre). `RoutineEditor.tsx` (modal `wide`) gestiona rutinas/días/ejercicios con copia local de trabajo + persistencia inmediata, `router.refresh()` al cerrar
+- **Conexión con Shadow**: tools `consultar_rutina` y `registrar_entrenamiento`; `consultar_estado` incluye resumen de gym. Shadow consulta y registra sesiones — André edita la rutina en la app
 
 ---
 
@@ -152,9 +168,9 @@ Para joins anidados con `.select("*, otra_tabla(campo)")`, usar cast doble:
 const data = result.data as unknown as MiTipo[];
 ```
 
-Tablas principales: `user_preferences`, `habits`, `habit_completions`, `financial_entries`, `bank_accounts`, `credit_cards`, `investments`, `flouvia_clients`, `flouvia_projects`, `shadow_conversations`, `shadow_messages`, `shadow_memory`, `shadow_cache`, `brain_notes`, `goals`, `goal_milestones`, `capital_goals`, `health_entries`, `reading_items`, `custom_pages`, `time_logs`, `academic_courses`, `assignments`, `semesters`, `priorities`, `daily_notes`.
+Tablas principales: `user_preferences`, `habits`, `habit_completions`, `financial_entries`, `bank_accounts`, `credit_cards`, `investments`, `flouvia_clients`, `flouvia_projects`, `shadow_conversations`, `shadow_messages`, `shadow_memory`, `shadow_cache`, `brain_notes`, `goals`, `goal_milestones`, `capital_goals`, `health_entries`, `reading_items`, `custom_pages`, `time_logs`, `academic_courses`, `assignments`, `semesters`, `priorities`, `daily_notes`, `workout_routines`, `workout_days`, `workout_exercises`, `workout_sessions`, `workout_sets`.
 
-Schema completo en `supabase/schema.sql` — correr en Supabase SQL Editor para crear/recrear tablas.
+Schema completo en `supabase/schema.sql` — correr en Supabase SQL Editor para crear/recrear tablas. Migración aditiva de gym (sin borrar datos): `supabase/gym.sql`.
 
 ---
 
@@ -170,14 +186,15 @@ Patrón: la página es **server component** (SSR, carga datos) y las acciones in
 
 | Server (con islas cliente) | Client components completos |
 |---|---|
-| finanzas, flouvia, metas, panamericana, salud, lectura, tiempo, centro | brief (`BriefClient`), shadow, habitos, brain, paginas, config, calendario |
+| finanzas, flouvia, metas, panamericana, salud, lectura, tiempo, centro | brief (`BriefClient`), shadow, habitos, brain, paginas, config, calendario, gym (`GymClient` + islas `LogSession`/`RoutineEditor`) |
 
 **Qué guarda cada página** (todo persiste a Supabase):
 - **Brief**: prioridades (check/agregar/borrar), intención editable, toggle de hábitos, brief generado por Shadow, agenda del día
 - **Hábitos v2**: tracker diario con check-off satisfactorio (anillo de progreso), calendario heatmap mensual (perfecto/parcial/fallado), stats de racha actual/mejor/% del mes/días perfectos, y strip de 30 días por hábito. Permite backfill clickeando días pasados del calendario
 - **Finanzas/Flouvia/Metas/Salud/Lectura/Tiempo/Panamericana**: crear registros + acciones (progreso de metas, ciclo de estado en lectura)
+- **Gym**: dashboard interactivo de entrenamiento (ver sección Gym abajo)
 
-El **ticker** del topbar (en `Topbar.tsx`) fetcha al montar: MRR (`flouvia_clients.monthly_value` activos), hábitos del día, racha 7d, GPA (`academic_courses.grade`). CDMX es placeholder estático.
+El **ticker** del topbar (en `Topbar.tsx`) fetcha al montar: MRR (`flouvia_clients.monthly_value` activos), hábitos del día, racha 7d, GPA (`academic_courses.grade`), sesiones de gym de la semana (`workout_sessions`). CDMX es placeholder estático.
 
 ---
 

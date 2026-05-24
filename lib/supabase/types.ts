@@ -283,6 +283,38 @@ export interface Database {
         Relationships: [];
       };
 
+      /* ── Gym / Entrenamiento ───────────────────────────── */
+      workout_routines: {
+        Row: { id: string; name: string; active: boolean; notes: string | null; sort_order: number; created_at: string };
+        Insert: Omit<Database["public"]["Tables"]["workout_routines"]["Row"], "id" | "created_at">;
+        Update: Partial<Database["public"]["Tables"]["workout_routines"]["Insert"]>;
+        Relationships: [];
+      };
+      workout_days: {
+        Row: { id: string; routine_id: string; name: string; day_order: number; muscle_groups: string[]; created_at: string };
+        Insert: Omit<Database["public"]["Tables"]["workout_days"]["Row"], "id" | "created_at">;
+        Update: Partial<Database["public"]["Tables"]["workout_days"]["Insert"]>;
+        Relationships: [];
+      };
+      workout_exercises: {
+        Row: { id: string; day_id: string; name: string; muscle_group: string | null; target_sets: number; target_reps: string | null; sort_order: number; created_at: string };
+        Insert: Omit<Database["public"]["Tables"]["workout_exercises"]["Row"], "id" | "created_at">;
+        Update: Partial<Database["public"]["Tables"]["workout_exercises"]["Insert"]>;
+        Relationships: [];
+      };
+      workout_sessions: {
+        Row: { id: string; date: string; routine_id: string | null; day_id: string | null; day_name: string | null; duration_minutes: number | null; bodyweight_kg: number | null; notes: string | null; created_at: string };
+        Insert: Omit<Database["public"]["Tables"]["workout_sessions"]["Row"], "id" | "created_at">;
+        Update: Partial<Database["public"]["Tables"]["workout_sessions"]["Insert"]>;
+        Relationships: [];
+      };
+      workout_sets: {
+        Row: { id: string; session_id: string; exercise_id: string | null; exercise_name: string; muscle_group: string | null; set_number: number; weight_kg: number | null; reps: number | null; rpe: number | null; created_at: string };
+        Insert: Omit<Database["public"]["Tables"]["workout_sets"]["Row"], "id" | "created_at">;
+        Update: Partial<Database["public"]["Tables"]["workout_sets"]["Insert"]>;
+        Relationships: [];
+      };
+
       /* ── Pages ─────────────────────────────────────────── */
       custom_pages: {
         Row: { id: string; title: string; emoji: string | null; content: string | null; sort_order: number; active: boolean; created_at: string };
@@ -329,3 +361,8 @@ export type UserPreferences = Database["public"]["Tables"]["user_preferences"]["
 export type TimeBlock = Database["public"]["Tables"]["time_blocks"]["Row"];
 export type ReadingItem = Database["public"]["Tables"]["reading_items"]["Row"];
 export type CustomPage = Database["public"]["Tables"]["custom_pages"]["Row"];
+export type WorkoutRoutine = Database["public"]["Tables"]["workout_routines"]["Row"];
+export type WorkoutDay = Database["public"]["Tables"]["workout_days"]["Row"];
+export type WorkoutExercise = Database["public"]["Tables"]["workout_exercises"]["Row"];
+export type WorkoutSession = Database["public"]["Tables"]["workout_sessions"]["Row"];
+export type WorkoutSet = Database["public"]["Tables"]["workout_sets"]["Row"];
