@@ -61,7 +61,7 @@ export interface Database {
         Row: {
           id: string; category: FinancialCategory; amount: number;
           description: string | null; date: string; subcategory: string | null;
-          card_id: string | null; payment_method: string | null; created_at: string;
+          card_id: string | null; account_id: string | null; payment_method: string | null; created_at: string;
         };
         Insert: Omit<Database["public"]["Tables"]["financial_entries"]["Row"], "id" | "created_at">;
         Update: Partial<Database["public"]["Tables"]["financial_entries"]["Insert"]>;
@@ -85,8 +85,9 @@ export interface Database {
       credit_cards: {
         Row: {
           id: string; name: string; bank: string | null; last_four: string | null;
-          credit_limit: number | null; current_balance: number; statement_day: number | null;
-          due_day: number | null; apr: number | null; active: boolean; sort_order: number; created_at: string;
+          credit_limit: number | null; current_balance: number; statement_balance: number | null;
+          statement_day: number | null; due_day: number | null; apr: number | null;
+          active: boolean; sort_order: number; created_at: string;
         };
         Insert: Omit<Database["public"]["Tables"]["credit_cards"]["Row"], "id" | "created_at">;
         Update: Partial<Database["public"]["Tables"]["credit_cards"]["Insert"]>;
@@ -209,9 +210,15 @@ export interface Database {
 
       /* ── Academic (UP) ─────────────────────────────────── */
       academic_courses: {
-        Row: { id: string; name: string; professor: string | null; credits: number | null; grade: number | null; code: string | null; semester: string | null; target_grade: number; notes: string | null; professor_email: string | null; active: boolean; color: string; created_at: string };
+        Row: { id: string; name: string; professor: string | null; credits: number | null; grade: number | null; code: string | null; semester: string | null; target_grade: number; notes: string | null; professor_email: string | null; active: boolean; color: string; absences: number; max_absences: number | null; created_at: string };
         Insert: Omit<Database["public"]["Tables"]["academic_courses"]["Row"], "id" | "created_at">;
         Update: Partial<Database["public"]["Tables"]["academic_courses"]["Insert"]>;
+        Relationships: [];
+      };
+      grade_components: {
+        Row: { id: string; course_id: string; name: string; kind: string; weight: number; grade: number | null; date: string | null; difficulty: number | null; study_start_date: string | null; topics: string | null; status: string; sort_order: number; created_at: string };
+        Insert: Omit<Database["public"]["Tables"]["grade_components"]["Row"], "id" | "created_at">;
+        Update: Partial<Database["public"]["Tables"]["grade_components"]["Insert"]>;
         Relationships: [];
       };
       academic_exams: {
@@ -344,6 +351,9 @@ export type CapitalGoal = Database["public"]["Tables"]["capital_goals"]["Row"];
 export type BankAccount = Database["public"]["Tables"]["bank_accounts"]["Row"];
 export type CreditCard = Database["public"]["Tables"]["credit_cards"]["Row"];
 export type Investment = Database["public"]["Tables"]["investments"]["Row"];
+export type Debt = Database["public"]["Tables"]["debts"]["Row"];
+export type Budget = Database["public"]["Tables"]["budgets"]["Row"];
+export type RecurringCharge = Database["public"]["Tables"]["recurring_charges"]["Row"];
 export type FlouviaClient = Database["public"]["Tables"]["flouvia_clients"]["Row"];
 export type FlouviaProject = Database["public"]["Tables"]["flouvia_projects"]["Row"];
 export type FlouviaInvoice = Database["public"]["Tables"]["flouvia_invoices"]["Row"];
@@ -356,6 +366,8 @@ export type Goal = Database["public"]["Tables"]["goals"]["Row"];
 export type GoalMilestone = Database["public"]["Tables"]["goal_milestones"]["Row"];
 export type AcademicCourse = Database["public"]["Tables"]["academic_courses"]["Row"];
 export type Assignment = Database["public"]["Tables"]["assignments"]["Row"];
+export type GradeComponent = Database["public"]["Tables"]["grade_components"]["Row"];
+export type ClassSchedule = Database["public"]["Tables"]["class_schedule"]["Row"];
 export type HealthEntry = Database["public"]["Tables"]["health_entries"]["Row"];
 export type UserPreferences = Database["public"]["Tables"]["user_preferences"]["Row"];
 export type TimeBlock = Database["public"]["Tables"]["time_blocks"]["Row"];

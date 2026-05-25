@@ -1,16 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Plus, Calendar } from "lucide-react";
-
-interface CalEvent {
-  id: string;
-  title: string | null;
-  description: string | null;
-  start: string | null;
-  end: string | null;
-  location: string | null;
-  color: string | null;
-}
+import { useState, useEffect, useCallback } from "react";
+import { ChevronLeft, ChevronRight, Plus, Calendar, MapPin, Pencil } from "lucide-react";
+import { EventModal, type CalEvent } from "@/components/calendario/EventModal";
 
 const COLOR_MAP: Record<string, string> = {
   "1": "var(--blue)",
@@ -37,8 +28,8 @@ function formatTime(iso: string | null): string {
   return d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
-function isAllDay(start: string | null): boolean {
-  return !!start && !start.includes("T");
+function isAllDay(ev: CalEvent): boolean {
+  return ev.allDay ?? (!!ev.start && !ev.start.includes("T"));
 }
 
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 7);
@@ -48,6 +39,8 @@ export default function CalendarioPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
+  const [editing, setEditing] = useState<CalEvent | null>(null);
+  const [creating, setCreating] = useState<Date | null>(null);
 
   const targetDate = new Date();
   targetDate.setDate(targetDate.getDate() + offset);
@@ -56,10 +49,10 @@ export default function CalendarioPage() {
   });
   const targetDateStr = targetDate.toISOString().split("T")[0];
 
-  useEffect(() => {
+  const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    fetch("/api/calendar?days=30")
+    fetch("/api/calendar?days=60")
       .then((r) => r.json())
       .then(({ events: evs, error: err }) => {
         if (err) { setError(err); return; }
@@ -69,18 +62,25 @@ export default function CalendarioPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => { load(); }, [load]);
+
   const dayEvents = events.filter((ev) => {
-    const start = ev.start;
-    if (!start) return false;
-    return start.split("T")[0] === targetDateStr;
+    if (!ev.start) return false;
+    return ev.start.split("T")[0] === targetDateStr;
   });
 
-  const allDayEvents = dayEvents.filter((ev) => isAllDay(ev.start));
-  const timedEvents = dayEvents.filter((ev) => !isAllDay(ev.start));
+  const allDayEvents = dayEvents.filter(isAllDay);
+  const timedEvents = dayEvents.filter((ev) => !isAllDay(ev));
 
   function getEventHour(ev: CalEvent): number {
-    if (!ev.start || isAllDay(ev.start)) return 0;
+    if (!ev.start || isAllDay(ev)) return 0;
     return new Date(ev.start).getHours();
+  }
+
+  function newEventAt(hour: number) {
+    const d = new Date(targetDate);
+    d.setHours(hour, 0, 0, 0);
+    setCreating(d);
   }
 
   return (
@@ -99,7 +99,7 @@ export default function CalendarioPage() {
             <button className="btn btn-ghost btn-icon" onClick={() => setOffset((o) => o + 1)}>
               <ChevronRight size={16} />
             </button>
-            <button className="btn btn-primary btn-sm">
+            <button className="btn btn-primary btn-sm" onClick={() => newEventAt(9)}>
               <Plus size={14} /> Evento
             </button>
           </div>
@@ -124,13 +124,14 @@ export default function CalendarioPage() {
                 <p className="eyebrow mb-2">Todo el día</p>
                 <div className="flex flex-col gap-1">
                   {allDayEvents.map((ev) => (
-                    <div
+                    <button
                       key={ev.id}
-                      className="cal-event"
+                      className="cal-event cal-event-btn"
                       style={{ borderLeftColor: eventColor(ev.color) }}
+                      onClick={() => setEditing(ev)}
                     >
                       <span className="cal-event-title">{ev.title ?? "Sin título"}</span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -142,21 +143,30 @@ export default function CalendarioPage() {
                 return (
                   <div key={hour} className="cal-slot">
                     <div className="cal-slot-time">{String(hour).padStart(2, "0")}:00</div>
-                    <div style={{ flex: 1, position: "relative" }}>
+                    <div
+                      className="cal-slot-body"
+                      onClick={(e) => { if (e.target === e.currentTarget) newEventAt(hour); }}
+                    >
                       {hourEvents.map((ev) => (
-                        <div
+                        <button
                           key={ev.id}
-                          className="cal-event"
+                          className="cal-event cal-event-btn"
                           style={{ borderLeftColor: eventColor(ev.color), marginBottom: 4 }}
+                          onClick={() => setEditing(ev)}
                         >
-                          <span className="cal-event-title">{ev.title ?? "Sin título"}</span>
+                          <span className="cal-event-title">
+                            {ev.title ?? "Sin título"}
+                            <Pencil size={11} className="cal-event-edit" />
+                          </span>
                           <span className="cal-event-time">
                             {formatTime(ev.start)} – {formatTime(ev.end)}
                           </span>
                           {ev.location && (
-                            <span className="tick" style={{ fontSize: 10 }}>{ev.location}</span>
+                            <span className="tick" style={{ fontSize: 10, display: "flex", alignItems: "center", gap: 3 }}>
+                              <MapPin size={9} /> {ev.location}
+                            </span>
                           )}
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -166,12 +176,24 @@ export default function CalendarioPage() {
               {dayEvents.length === 0 && (
                 <div style={{ padding: "48px 16px", textAlign: "center" }}>
                   <p style={{ color: "var(--mute)", fontSize: 14 }}>Sin eventos para este día</p>
+                  <button className="btn btn-ghost btn-sm" style={{ marginTop: 12 }} onClick={() => newEventAt(9)}>
+                    <Plus size={13} /> Agregar evento
+                  </button>
                 </div>
               )}
             </div>
           </>
         )}
       </div>
+
+      {(editing || creating) && (
+        <EventModal
+          event={editing}
+          defaultStart={creating ?? undefined}
+          onClose={() => { setEditing(null); setCreating(null); }}
+          onSaved={load}
+        />
+      )}
     </div>
   );
 }

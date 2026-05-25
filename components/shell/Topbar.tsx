@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/store";
-import { Bell, Menu, Moon, Sun } from "lucide-react";
+import { Menu, Moon, Sun } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
+import { NotifCenter } from "./NotifCenter";
 
 type TickerData = {
   mrr: number;
@@ -182,9 +183,7 @@ export function Topbar() {
         >
           AJUSTES
         </button>
-        <button className="tb-btn" aria-label="Notificaciones">
-          <Bell size={15} />
-        </button>
+        <NotifCenter />
       </div>
     </header>
   );

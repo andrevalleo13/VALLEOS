@@ -42,7 +42,8 @@ CSS grid: `grid-template-columns: var(--sidebar-w) 1fr` · `grid-template-rows: 
 ### Componentes del shell
 | Archivo | Descripción |
 |---------|-------------|
-| `components/shell/Topbar.tsx` | Barra superior 3-col: chips `⌘K ⌘J ⌘.` · ticker scrollable con métricas reales (MRR/GPA/hábitos/racha) · widgets CDMX/Silencio/Ajustes/campana. El ticker se fusionó aquí (ya no hay `Ticker.tsx` separado) |
+| `components/shell/Topbar.tsx` | Barra superior 3-col: chips `⌘K ⌘J ⌘.` · ticker scrollable con métricas reales (MRR/GPA/hábitos/racha) · widgets CDMX/Silencio/Ajustes + `<NotifCenter>`. El ticker se fusionó aquí (ya no hay `Ticker.tsx` separado) |
+| `components/shell/NotifCenter.tsx` | Centro de notificaciones (la campana, antes muerta). Ver sección Notificaciones |
 | `components/shell/Sidebar.tsx` | Nav lateral: brand serif `VALLE·`, search, secciones colapsables, footer con avatar |
 | `components/shell/LockScreen.tsx` | PIN 4 dígitos (SHA-256 → localStorage) + WebAuthn biométrico |
 | `components/shell/CmdK.tsx` | Paleta de comandos (⌘K) — usa `cmdk` |
@@ -118,6 +119,7 @@ Todas las páginas usan este patrón:
 - `.mm-*` — mapa muscular anatómico SVG (`components/gym/MuscleMap.tsx`)
 - `.gym-*` — dashboard de Gym (barras de volumen, filas de series, lista de ejercicios)
 - `.re-*` — editor de rutina (`RoutineEditor.tsx`): chips de rutina, días, chips de músculo, filas de ejercicio
+- `.ac-*` — dashboard de Academia (`PanamericanaClient.tsx`): card de materia expandible, esquema de calificación con barra de peso + input inline, badges de dificultad, stepper de faltas, grid de horario semanal
 - `.seg` / `.seg-btn` — control segmentado (toggle Semana/Mes)
 - `.modal-card-wide` — modal ancho (720px); `Modal` acepta prop `wide`. `.modal-body` ahora hace scroll (max-height 80vh)
 
@@ -140,10 +142,40 @@ Todas las páginas usan este patrón:
 - **Ruta**: `app/(os)/shadow/page.tsx` — layout 2 columnas: presencia (orb limpio + waveform + telemetría en pills + tags) | conversación (chat con historial en dropdown). Prompts rápidos abajo
 - **API**: `app/api/shadow/route.ts` — loop agéntico con **tool use** de Anthropic. Streaming **NDJSON** (un JSON por línea): eventos `{type:"conv"|"text"|"tool"|"tool_result"|"error"|"done"}`
 - **Modelo**: `claude-sonnet-4-6`
-- **Herramientas** (`lib/shadow/tools.ts` → `SHADOW_TOOLS` + `executeTool`): Shadow EJECUTA acciones reales en Supabase. 11 tools: `consultar_estado` (incluye resumen de gym), `crear_nota`, `agregar_prioridad`, `completar_prioridad`, `crear_habito`, `completar_habito`, `registrar_finanza`, `consultar_rutina`, `registrar_entrenamiento`, `recordar`, `crear_evento` (Google Calendar). Cada una devuelve `{ok, summary}` que se muestra como chip en vivo y se manda como `tool_result` a Claude
+- **Herramientas** (`lib/shadow/tools.ts` → `SHADOW_TOOLS` + `executeTool`): Shadow EJECUTA acciones reales en Supabase y Google Calendar. Cada una devuelve `{ok, summary}` que se muestra como chip en vivo y se manda como `tool_result` a Claude. Grupos:
+  - **Estado/notas**: `consultar_estado` (prioridades, hábitos, finanzas, gym, próximo examen y agenda 48h), `crear_nota`, `recordar` (memoria persistente)
+  - **Prioridades/hábitos**: `agregar_prioridad`, `completar_prioridad`, `crear_habito`, `completar_habito`
+  - **Finanzas**: `consultar_finanzas`, `registrar_finanza` (auto-categoriza)
+  - **Gym**: `consultar_rutina`, `registrar_entrenamiento`
+  - **Academia (Panamericana)**: `consultar_academia`, `agregar_componente`, `calificar_componente`, `registrar_falta`
+  - **Calendario**: `crear_evento`, `consultar_eventos`, `editar_evento`, `eliminar_evento`
+  - **Notificaciones**: `crear_notificacion` (empuja a la campana / centro de notificaciones)
 - **Memoria**: tabla `shadow_memory` → se inyecta en system prompt como `## Memoria persistente`. El tool `recordar` escribe aquí
 - **Mensajes guardados**: `shadow_messages.parts` = `[{text}, {tool}...]` (texto + resúmenes de acciones). El cliente parsea NDJSON y reconstruye texto + chips al recargar
 - **Brief del día**: `app/api/shadow/brief/route.ts` (POST) — genera el brief analizando datos del día, lo cachea en `shadow_cache` key `brief:{YYYY-MM-DD}`. Se dispara desde el botón en Brief
+- **Proyección académica**: `app/api/shadow/academia/route.ts` (POST) — analiza materias/calificaciones/exámenes/faltas y genera panorama + materias en riesgo + plan de exámenes + foco. Cachea en `shadow_cache` key `academia:{YYYY-MM-DD}`. Se dispara desde el botón en Panamericana
+- **Análisis financiero**: `app/api/shadow/finanzas/route.ts` (POST) — analiza patrimonio, distribución del gasto, tendencia vs. mes previo y próximos pagos; devuelve 3 bloques (**Lectura** · **En qué se va el dinero** · **Movimientos**). Cachea en `shadow_cache` key `finanzas:{YYYY-MM}`. Se dispara desde el botón en Finanzas
+
+---
+
+## Finanzas — Dinero (módulo 03)
+- **Ruta**: `app/(os)/finanzas/page.tsx` (server: carga cuentas/tarjetas/inversiones/cargos recurrentes + movimientos de los últimos 6 meses + análisis cacheado) → todo se computa server-side y la interactividad son islas
+- **Modelo de datos**: `financial_entries` (movimiento: `category` enum de 5 [flouvia_ingreso/gasto_personal/gasto_flouvia/ahorro/inversion], `amount`, `subcategory` = bucket canónico, `card_id`/`account_id` para vincular tarjeta o cuenta de débito, `payment_method`) · `bank_accounts` (cuentas débito/efectivo/digital) · `credit_cards` (`credit_limit`, `current_balance`, `statement_balance` = saldo al corte a pagar, `statement_day` corte, `due_day` pago, `apr`) · `investments` · `capital_goals` · `recurring_charges` (cargos fijos con `charge_day`) · `budgets` (presupuestos por categoría, aún sin UI)
+- **Taxonomía de gasto**: `lib/finance/categories.ts` — buckets canónicos (`escuela`, `comida`, `salidas`, `transporte`, `suscripciones`, `salud`, `hogar`, `compras`, `servicios`, `ahorro`, `inversion`, `flouvia`, `ingreso`, `otros`) cada uno con color + ícono. `normalizeBucket()` (sinónimos, estilo `muscles.ts`), `entryBucket()` (unifica category+subcategory → bucket para la distribución), `bucketLabel/Color/Icon`
+- **Próximos pagos**: `lib/finance/payments.ts` — `buildUpcomingPayments(cards, recurring)` calcula la próxima fecha de cada `due_day`/`charge_day` (`nextOccurrenceOfDay`, clamp al fin de mes), el monto (tarjeta: `statement_balance ?? current_balance`) y los días que faltan, ordenado. Compartido por la página y Shadow
+- **Dashboard**: header con 3 botones (`AddAccount` · `AddCard` · `AddEntry`) · patrimonio neto · KPIs (saldo, ingresos, gastos, balance del mes) · panel **análisis de Shadow** (`Analysis.tsx`) · **gráficas** (`FinanceCharts.tsx`, client): donut SVG de distribución del gasto con leyenda interactiva + barras ingresos/gastos de 6 meses · **próximos pagos** (tarjetas + recurrentes, resalta ≤3 días) · cuentas · tarjetas (con día de corte/pago + barra de uso) · metas de capital · últimos movimientos (con bucket + método)
+- **Islas**: `AddEntry.tsx` (movimiento con categoría → si es gasto, chips de subcategoría/bucket + método de pago + cuenta/tarjeta), `AddAccount.tsx` (cuenta de débito/efectivo), `AddCard.tsx` (tarjeta con corte/pago/límite). Las gráficas son SVG a mano (sin librería), igual que el gym
+- **Conexión con Shadow**: tools `consultar_finanzas` (patrimonio, distribución, próximos pagos) y `registrar_finanza` (Shadow **auto-categoriza**: elige categoría + subcategoría canónica). `consultar_estado` incluye el próximo pago a ≤10 días. Clases CSS: `.fin-*` (charts, donut, leyenda, barras, filas de pago, chips de bucket, análisis)
+
+---
+
+## Academia — Panamericana (módulo 09)
+- **Ruta**: `app/(os)/panamericana/page.tsx` (server: carga materias activas + `grade_components` + entregas pendientes + `class_schedule` + análisis cacheado) → `PanamericanaClient.tsx` (dashboard cliente que computa todo y persiste vía islas)
+- **Modelo de datos**: `academic_courses` (materia, `target_grade`, `color`, `absences`/`max_absences` para faltas) → `grade_components` (el esquema de calificación: cada componente del 100% con `kind` examen/tarea/proyecto/participacion/otro, `weight`, `grade` 0-10, `date`; los exámenes llevan `difficulty` 1-5, `study_start_date` y `topics`). `class_schedule` (horario: `day_of_week` 0-6, `start_time`/`end_time`, `room`). `assignments` sigue siendo el tracker de entregas/tareas con fecha
+- **Cálculo** (`lib/academia/grades.ts`): `computeCourseGrades()` (promedio ponderado → actual/proyectada, peso calificado/restante), `neededForTarget()` (qué promedio necesita en lo que falta para su meta), `suggestStudyStart()` (fecha − días según dificultad: 1→2d … 5→18d), `studyState()` (urgent/study-now/soon/later), `absenceRisk()` (safe/warn/danger vs. límite). Al calificar un componente se recalcula y persiste `academic_courses.grade` para que GPA y ticker queden consistentes
+- **Dashboard** (`PanamericanaClient`): KPIs (GPA proyectado, materias, créditos, exámenes próximos, faltas en riesgo) · panel de **proyección de Shadow** · lista de exámenes próximos (color por dificultad + "estudia ya"/cuántos días) · horario semanal en grid · entregas pendientes · cards de materia expandibles con esquema de calificación (barras de peso + input inline de calificación), "necesitas X en el Y% restante", stepper de faltas con riesgo, y su horario
+- **Islas**: `AddCourse` (con faltas permitidas), `AddComponent` (examen/componente con dificultad + sugerencia de cuándo estudiar), `AddAssignment`, `AddClass` (horario). Calificar/borrar componentes y ajustar faltas es inline en `PanamericanaClient`
+- **Conexión con Shadow**: tools `consultar_academia`, `agregar_componente`, `calificar_componente`, `registrar_falta`; `consultar_estado` incluye el próximo examen. Shadow consulta, registra exámenes/notas/faltas y proyecta el semestre — André edita el detalle en la app
 
 ---
 
@@ -168,31 +200,50 @@ Para joins anidados con `.select("*, otra_tabla(campo)")`, usar cast doble:
 const data = result.data as unknown as MiTipo[];
 ```
 
-Tablas principales: `user_preferences`, `habits`, `habit_completions`, `financial_entries`, `bank_accounts`, `credit_cards`, `investments`, `flouvia_clients`, `flouvia_projects`, `shadow_conversations`, `shadow_messages`, `shadow_memory`, `shadow_cache`, `brain_notes`, `goals`, `goal_milestones`, `capital_goals`, `health_entries`, `reading_items`, `custom_pages`, `time_logs`, `academic_courses`, `assignments`, `semesters`, `priorities`, `daily_notes`, `workout_routines`, `workout_days`, `workout_exercises`, `workout_sessions`, `workout_sets`.
+Tablas principales: `user_preferences`, `habits`, `habit_completions`, `financial_entries`, `bank_accounts`, `credit_cards`, `investments`, `flouvia_clients`, `flouvia_projects`, `shadow_conversations`, `shadow_messages`, `shadow_memory`, `shadow_cache`, `notifications`, `brain_notes`, `goals`, `goal_milestones`, `capital_goals`, `health_entries`, `reading_items`, `custom_pages`, `time_logs`, `academic_courses` (incluye `absences`/`max_absences`), `grade_components`, `class_schedule`, `assignments`, `semesters`, `priorities`, `daily_notes`, `workout_routines`, `workout_days`, `workout_exercises`, `workout_sessions`, `workout_sets`.
 
-Schema completo en `supabase/schema.sql` — correr en Supabase SQL Editor para crear/recrear tablas. Migración aditiva de gym (sin borrar datos): `supabase/gym.sql`.
+Schema completo en `supabase/schema.sql` — correr en Supabase SQL Editor para crear/recrear tablas. Migraciones aditivas (sin borrar datos): `supabase/gym.sql`, `supabase/academia.sql` (faltas + `grade_components`), `supabase/finanzas.sql` (`financial_entries.account_id` + `credit_cards.statement_balance` + índices).
 
 ---
 
-## Calendario
-- API route: `app/api/calendar/route.ts`
-- Usa `googleapis` con OAuth2 y refresh token (env vars: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`)
-- El cliente (`app/(os)/calendario/page.tsx`) fetcha `/api/calendar?days=30`
+## Calendario — Google Calendar bidireccional (módulo 05)
+- **API route**: `app/api/calendar/route.ts` — CRUD completo contra `calendarId: "primary"`:
+  - `GET ?days=N` → lista eventos (incluye `id`, `description`, `allDay`, `location`, `color`/colorId, `htmlLink`)
+  - `POST` → crea evento `{title, start, end?, description?, location?, color?, allDay?}`
+  - `PATCH` → edita por `id` (parcial: cualquier campo)
+  - `DELETE ?id=` → borra
+  - Helpers: `getCalendar()` (OAuth2 con refresh token), `serialize()`, `toRequestBody()`. Zona horaria fija `America/Mexico_City`. En `allDay`, Google usa fin exclusivo (el modal suma 1 día).
+- **Env vars**: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `GOOGLE_REFRESH_TOKEN`
+- **UI** (`app/(os)/calendario/page.tsx`, client): vista de día con navegación. El botón "Evento" y los slots horarios vacíos abren `EventModal` en modo crear; click en un evento lo abre en modo editar. Tras crear/editar/borrar → re-fetch (`load()`)
+- **`components/calendario/EventModal.tsx`**: modal reutilizable crear/editar/borrar. Campos: título, todo-el-día, inicio/fin (`datetime-local` o `date`), ubicación, descripción (textarea) y color (chips `.cal-color-chip`). Convierte ISO↔valor local y llama `POST`/`PATCH`/`DELETE`. Exporta el tipo `CalEvent`
+- **Shadow lee y escribe el calendario**: tools `consultar_eventos` (lee próximos N días con cuánto falta), `crear_evento` (con ubicación/descripción), `editar_evento` (mover/agrandar buscando por título), `eliminar_evento`. `consultar_estado` incluye la agenda de 48h; el brief incluye la agenda del día y marca lo que requiere prepararse
+- **Avisos de urgencia**: ver sección Notificaciones — `NotifCenter` escanea el calendario y Shadow puede empujar notis con `crear_notificacion`
+
+---
+
+## Notificaciones — campana del topbar
+- **Tabla**: `notifications` (ya existía en `schema.sql`, antes sin uso): `{ title, body, severity('info'|'warning'|'error'|'success'), module, href, read, dismissed, created_at }`
+- **`components/shell/NotifCenter.tsx`** (client, vive en el Topbar): campana con badge de no-leídas + panel dropdown (`.notif-*`). Lee `notifications` (no descartadas) vía Supabase client, refresca cada 60s. Al abrir: marca leídas + pide permiso de `Notification` del navegador. Click en una noti con `href` → `router.push`. X individual o "Limpiar" → marca `dismissed`
+- **Notificaciones del navegador**: si hay permiso concedido, dispara `new Notification()` para las notis nuevas no leídas que aparecen tras el primer load (foreground). Push real en background (PWA cerrada) requeriría service worker + VAPID + cron — pendiente
+- **Escaneo de calendario**: `NotifCenter` consulta `/api/calendar?days=1` y crea una noti `warning` por cada evento con hora que empieza en ≤60 min. Dedupe en `localStorage` (key `valleos-notified-events`, scoping por día)
+- **Shadow empuja notis**: tool `crear_notificacion` → inserta en la tabla; aparece en la campana en el siguiente refresh. El system prompt le indica avisar de lo urgente con severidad `warning` y enlace `/calendario`
 
 ---
 
 ## Páginas — server shell + islas cliente
-Patrón: la página es **server component** (SSR, carga datos) y las acciones interactivas son **islas cliente** (`"use client"`) que escriben a Supabase y llaman `router.refresh()`. Ejemplos de islas: `finanzas/AddEntry`, `flouvia/AddClient`, `metas/AddGoal`+`GoalProgress`, `salud/LogHealth`, `lectura/AddReading`+`ReadingStatus`, `tiempo/LogTime`, `panamericana/AddCourse`+`AddAssignment`.
+Patrón: la página es **server component** (SSR, carga datos) y las acciones interactivas son **islas cliente** (`"use client"`) que escriben a Supabase y llaman `router.refresh()`. Ejemplos de islas: `finanzas/AddEntry`+`AddAccount`+`AddCard`, `flouvia/AddClient`, `metas/AddGoal`+`GoalProgress`, `salud/LogHealth`, `lectura/AddReading`+`ReadingStatus`, `tiempo/LogTime`, `panamericana/AddCourse`+`AddComponent`+`AddAssignment`+`AddClass`.
 
 | Server (con islas cliente) | Client components completos |
 |---|---|
-| finanzas, flouvia, metas, panamericana, salud, lectura, tiempo, centro | brief (`BriefClient`), shadow, habitos, brain, paginas, config, calendario, gym (`GymClient` + islas `LogSession`/`RoutineEditor`) |
+| finanzas, flouvia, metas, salud, lectura, tiempo, centro | brief (`BriefClient`), shadow, habitos, brain, paginas, config, calendario, gym (`GymClient`), panamericana (`PanamericanaClient` + islas `AddCourse`/`AddComponent`/`AddAssignment`/`AddClass`) |
 
 **Qué guarda cada página** (todo persiste a Supabase):
 - **Brief**: prioridades (check/agregar/borrar), intención editable, toggle de hábitos, brief generado por Shadow, agenda del día
 - **Hábitos v2**: tracker diario con check-off satisfactorio (anillo de progreso), calendario heatmap mensual (perfecto/parcial/fallado), stats de racha actual/mejor/% del mes/días perfectos, y strip de 30 días por hábito. Permite backfill clickeando días pasados del calendario
-- **Finanzas/Flouvia/Metas/Salud/Lectura/Tiempo/Panamericana**: crear registros + acciones (progreso de metas, ciclo de estado en lectura)
-- **Gym**: dashboard interactivo de entrenamiento (ver sección Gym abajo)
+- **Finanzas**: dashboard de dinero — agregar cuentas/tarjetas/movimientos, gráficas (distribución + tendencia), próximos pagos, análisis de Shadow (ver sección Finanzas arriba)
+- **Flouvia/Metas/Salud/Lectura/Tiempo**: crear registros + acciones (progreso de metas, ciclo de estado en lectura)
+- **Gym**: dashboard interactivo de entrenamiento (ver sección Gym arriba)
+- **Panamericana**: dashboard académico interactivo — esquema de calificación por materia, calificar parciales inline, faltas, exámenes por dificultad + cuándo estudiar, horario y proyección de Shadow (ver sección Academia arriba)
 
 El **ticker** del topbar (en `Topbar.tsx`) fetcha al montar: MRR (`flouvia_clients.monthly_value` activos), hábitos del día, racha 7d, GPA (`academic_courses.grade`), sesiones de gym de la semana (`workout_sessions`). CDMX es placeholder estático.
 

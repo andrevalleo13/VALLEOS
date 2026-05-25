@@ -132,6 +132,7 @@ create table credit_cards (
   last_four text,
   credit_limit numeric(14,2),
   current_balance numeric(14,2) not null default 0,
+  statement_balance numeric(14,2),
   statement_day int,
   due_day int,
   apr numeric(5,2),
@@ -177,6 +178,7 @@ create table financial_entries (
   date date not null default current_date,
   subcategory text,
   card_id uuid references credit_cards(id) on delete set null,
+  account_id uuid references bank_accounts(id) on delete set null,
   payment_method text,
   created_at timestamptz default now()
 );
@@ -393,6 +395,8 @@ create table academic_courses (
   professor_email text,
   active boolean not null default true,
   color text not null default '#C9A84C',
+  absences int not null default 0,
+  max_absences int,
   created_at timestamptz default now()
 );
 
@@ -426,6 +430,26 @@ create table class_schedule (
   room text,
   created_at timestamptz default now()
 );
+
+-- Esquema de calificación: cada componente del 100% (exámenes, tareas, proyectos…).
+-- La calificación de la materia = promedio ponderado por weight. Los exámenes
+-- llevan dificultad (1-5) y desde cuándo conviene estudiar.
+create table grade_components (
+  id uuid primary key default uuid_generate_v4(),
+  course_id uuid not null references academic_courses(id) on delete cascade,
+  name text not null,
+  kind text not null default 'otro' check (kind in ('examen','tarea','proyecto','participacion','otro')),
+  weight numeric(5,2) not null default 0,
+  grade numeric(5,2),
+  date date,
+  difficulty int check (difficulty between 1 and 5),
+  study_start_date date,
+  topics text,
+  status text not null default 'pending' check (status in ('pending','studying','done')),
+  sort_order int not null default 0,
+  created_at timestamptz default now()
+);
+create index idx_grade_components_course on grade_components (course_id, sort_order);
 
 -- ── Health ─────────────────────────────────────────────────────────────────
 create table health_entries (
@@ -617,6 +641,7 @@ alter table academic_courses enable row level security;
 alter table academic_exams enable row level security;
 alter table assignments enable row level security;
 alter table class_schedule enable row level security;
+alter table grade_components enable row level security;
 alter table health_entries enable row level security;
 alter table goals enable row level security;
 alter table goal_milestones enable row level security;
@@ -640,7 +665,7 @@ declare
     'capital_goals','net_worth_snapshots','budgets','recurring_charges',
     'flouvia_clients','flouvia_contacts','flouvia_followups','flouvia_projects','flouvia_invoices',
     'shadow_conversations','shadow_messages','shadow_cache','shadow_memory','notifications',
-    'brain_notes','semesters','academic_courses','academic_exams','assignments','class_schedule',
+    'brain_notes','semesters','academic_courses','academic_exams','assignments','class_schedule','grade_components',
     'health_entries','goals','goal_milestones','time_blocks','time_logs','reading_items','custom_pages',
     'workout_routines','workout_days','workout_exercises','workout_sessions','workout_sets'
   ];
@@ -660,7 +685,7 @@ declare
     'capital_goals','net_worth_snapshots','budgets','recurring_charges',
     'flouvia_clients','flouvia_contacts','flouvia_followups','flouvia_projects','flouvia_invoices',
     'shadow_conversations','shadow_messages','shadow_cache','shadow_memory','notifications',
-    'brain_notes','semesters','academic_courses','academic_exams','assignments','class_schedule',
+    'brain_notes','semesters','academic_courses','academic_exams','assignments','class_schedule','grade_components',
     'health_entries','goals','goal_milestones','time_blocks','time_logs','reading_items','custom_pages',
     'workout_routines','workout_days','workout_exercises','workout_sessions','workout_sets'
   ];

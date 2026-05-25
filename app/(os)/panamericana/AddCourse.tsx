@@ -16,6 +16,7 @@ export function AddCourse({ variant = "ghost", label = "Materia" }: { variant?: 
   const [credits, setCredits] = useState("");
   const [target, setTarget] = useState("9");
   const [code, setCode] = useState("");
+  const [maxAbsences, setMaxAbsences] = useState("3");
   const [color, setColor] = useState(COLORS[0]);
   const [saving, setSaving] = useState(false);
 
@@ -34,6 +35,8 @@ export function AddCourse({ variant = "ghost", label = "Materia" }: { variant?: 
       professor_email: null,
       active: true,
       color,
+      absences: 0,
+      max_absences: maxAbsences.trim() ? parseInt(maxAbsences) : null,
     });
     setSaving(false);
     setOpen(false);
@@ -63,6 +66,9 @@ export function AddCourse({ variant = "ghost", label = "Materia" }: { variant?: 
             </Field>
             <Field label="Meta de calificación">
               <input className="input" type="number" step="0.1" placeholder="9.0" value={target} onChange={(e) => setTarget(e.target.value)} />
+            </Field>
+            <Field label="Faltas permitidas">
+              <input className="input" type="number" placeholder="3" value={maxAbsences} onChange={(e) => setMaxAbsences(e.target.value)} />
             </Field>
           </div>
           <Field label="Color">
