@@ -1,10 +1,10 @@
 "use client";
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { THEMES, applyTheme } from "@/lib/themes";
 import { ColorPicker } from "@/components/ColorPicker";
 import { darken, toRgba } from "@/lib/colors";
-import { X, RotateCcw } from "lucide-react";
+import { X, RotateCcw, RefreshCw } from "lucide-react";
 
 const ACCENT_PRESETS = [
   "#C9A35F", "#5B8DB8", "#7FA98C", "#8B77CC", "#D96B58",
@@ -19,6 +19,18 @@ const BONE_PRESETS = [
 
 export function AjustesDrawer() {
   const { ajustesOpen, setAjustesOpen, ajustes, setAjustes, setTheme } = useAppStore();
+  const [syncing, setSyncing] = useState<"idle" | "loading" | "ok" | "error">("idle");
+
+  async function syncMemory() {
+    setSyncing("loading");
+    try {
+      const res = await fetch("/api/shadow/sync-memory", { method: "POST" });
+      setSyncing(res.ok ? "ok" : "error");
+    } catch {
+      setSyncing("error");
+    }
+    setTimeout(() => setSyncing("idle"), 3000);
+  }
   const customColors = ajustes.customColors ?? {};
 
   const apply = useCallback(() => {
@@ -232,6 +244,32 @@ export function AjustesDrawer() {
           </div>
 
           <div className="divider" />
+
+          {/* Memoria de Claude */}
+          <div>
+            <p className="ajustes-section-label">Memoria de Claude</p>
+            <div className="card-sm flex flex-col gap-3">
+              <span className="tick" style={{ color: "var(--mute)", lineHeight: 1.5 }}>
+                Exporta tus datos a la memoria de Claude para que tenga contexto de tu vida en futuras conversaciones.
+              </span>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 7,
+                  fontSize: 12,
+                  color: syncing === "ok" ? "var(--green)" : syncing === "error" ? "var(--red)" : "var(--gold)",
+                  borderColor: syncing === "ok" ? "var(--green)" : syncing === "error" ? "var(--red)" : undefined,
+                }}
+                onClick={syncMemory}
+                disabled={syncing === "loading"}
+              >
+                <RefreshCw size={12} style={{ animation: syncing === "loading" ? "spin 1s linear infinite" : undefined }} />
+                {syncing === "idle" ? "Sync memoria" : syncing === "loading" ? "Sincronizando..." : syncing === "ok" ? "¡Listo!" : "Error al sincronizar"}
+              </button>
+            </div>
+          </div>
 
           {/* Sistema */}
           <div>

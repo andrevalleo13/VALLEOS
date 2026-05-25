@@ -1,14 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { BookOpen } from "lucide-react";
 import { AddReading } from "./AddReading";
-import { ReadingStatus } from "./ReadingStatus";
+import { BookCard } from "./BookCard";
+import { ContentCard } from "./ContentCard";
 import type { ReadingItem } from "@/lib/supabase/types";
 
 export const revalidate = 0;
-
-const TYPE_ICONS: Record<string, string> = {
-  article: "📄", video: "📹", podcast: "🎧", paper: "📃", book: "📚", other: "🔗",
-};
 
 export default async function LecturaPage() {
   const supabase = await createClient();
@@ -17,74 +14,61 @@ export default async function LecturaPage() {
     .from("reading_items")
     .select("*")
     .neq("status", "archived")
-    .order("status")
     .order("added_at", { ascending: false });
 
-  const reading = (items ?? []).filter((i) => i.status === "reading");
-  const pending = (items ?? []).filter((i) => i.status === "pending");
-  const done = (items ?? []).filter((i) => i.status === "done");
+  const all = (items ?? []) as ReadingItem[];
+  const reading = all.filter((i) => i.status === "reading");
+  const pending  = all.filter((i) => i.status === "pending");
+  const done     = all.filter((i) => i.status === "done");
+
+  const books    = all.filter((i) => i.type === "book").length;
+  const content  = all.filter((i) => i.type !== "book").length;
 
   return (
     <div>
       <div className="page-header">
-        <div className="flex items-start justify-between">
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div>
-            <p className="eyebrow mb-2">11 · LECTURAS</p>
+            <p className="eyebrow mb-2">12 · LECTURAS</p>
             <h1 className="page-title">Lectura.</h1>
           </div>
-          <AddReading />
+          <div style={{ textAlign: "right", marginTop: 4 }}>
+            <AddReading />
+          </div>
         </div>
       </div>
 
       <div className="page-body">
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 32 }}>
           {[
-            { label: "Leyendo", val: reading.length, color: "var(--gold)" },
-            { label: "Por leer", val: pending.length, color: "var(--mute)" },
-            { label: "Completados", val: done.length, color: "var(--green)" },
+            { label: "Leyendo",     val: reading.length, color: "var(--gold)" },
+            { label: "Por leer",    val: pending.length,  color: "var(--mute)" },
+            { label: "Completados", val: done.length,     color: "var(--green)" },
+            { label: "Libros",      val: books,           color: "var(--bone-dim)" },
           ].map((k) => (
-            <div key={k.label} className="card text-center">
-              <p style={{ fontFamily: "var(--f-mono)", fontSize: 32, color: k.color }}>{k.val}</p>
+            <div key={k.label} className="card" style={{ textAlign: "center" }}>
+              <p style={{ fontFamily: "var(--f-mono)", fontSize: 28, color: k.color }}>{k.val}</p>
               <p className="metric-label">{k.label}</p>
             </div>
           ))}
         </div>
 
-        {(items ?? []).length === 0 ? (
-          <div className="card text-center py-12">
+        {all.length === 0 ? (
+          <div className="card" style={{ textAlign: "center", padding: "48px 24px" }}>
             <BookOpen size={32} style={{ color: "var(--mute-2)", margin: "0 auto 12px" }} />
-            <p style={{ color: "var(--mute)", fontSize: 14 }}>Reading list vacía</p>
-            <p className="tick mt-1 mb-4">Agrega artículos, videos y libros que quieras consumir</p>
+            <p style={{ color: "var(--mute)", fontSize: 14 }}>Lista de lectura vacía</p>
+            <p className="tick" style={{ marginTop: 4, marginBottom: 16 }}>
+              Agrega libros, artículos, videos o podcasts
+            </p>
             <AddReading label="Agregar primero" />
           </div>
         ) : (
           <>
-            {reading.length > 0 && (
-              <div className="mb-6">
-                <p className="eyebrow mb-3">Leyendo ahora</p>
-                <div className="flex flex-col gap-2">
-                  {reading.map((item) => <ReadingCard key={item.id} item={item} />)}
-                </div>
-              </div>
-            )}
-
-            {pending.length > 0 && (
-              <div className="mb-6">
-                <p className="eyebrow mb-3">Por leer ({pending.length})</p>
-                <div className="flex flex-col gap-2">
-                  {pending.map((item) => <ReadingCard key={item.id} item={item} />)}
-                </div>
-              </div>
-            )}
-
+            <Section title="Leyendo ahora" items={reading} />
+            <Section title={`Por leer (${pending.length})`} items={pending} />
             {done.length > 0 && (
-              <div>
-                <p className="eyebrow mb-3">Completados ({done.length})</p>
-                <div className="flex flex-col gap-2">
-                  {done.slice(0, 10).map((item) => <ReadingCard key={item.id} item={item} />)}
-                </div>
-              </div>
+              <Section title={`Completados (${done.length})`} items={done.slice(0, 20)} />
             )}
           </>
         )}
@@ -93,32 +77,27 @@ export default async function LecturaPage() {
   );
 }
 
-function ReadingCard({ item }: { item: ReadingItem }) {
+function Section({ title, items }: { title: string; items: ReadingItem[] }) {
+  if (items.length === 0) return null;
+
+  const books   = items.filter((i) => i.type === "book");
+  const content = items.filter((i) => i.type !== "book");
+
   return (
-    <div className="note-item">
-      <span style={{ fontSize: 18, flexShrink: 0 }}>{TYPE_ICONS[item.type] ?? "🔗"}</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="flex items-start gap-2">
-          <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 14, color: "var(--bone-dim)", fontWeight: 500 }}>
-              {item.title ?? item.url}
-            </p>
-            {item.summary && (
-              <p style={{ fontSize: 12, color: "var(--mute)", marginTop: 2, lineHeight: 1.5 }}>
-                {item.summary}
-              </p>
-            )}
-            {item.source && <p className="tick mt-1">{item.source}</p>}
-          </div>
+    <div style={{ marginBottom: 32 }}>
+      <p className="eyebrow" style={{ marginBottom: 16 }}>{title}</p>
+
+      {books.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: content.length > 0 ? 12 : 0 }}>
+          {books.map((item) => <BookCard key={item.id} item={item} />)}
         </div>
-        <div className="flex items-center gap-2 mt-2">
-          <ReadingStatus id={item.id} status={item.status} />
-          {item.estimated_minutes && (
-            <span className="tick" style={{ fontSize: 10 }}>⏱ {item.estimated_minutes}min</span>
-          )}
-          {item.notes && <span className="tag" style={{ fontSize: 10 }}>Notas</span>}
+      )}
+
+      {content.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {content.map((item) => <ContentCard key={item.id} item={item} />)}
         </div>
-      </div>
+      )}
     </div>
   );
 }

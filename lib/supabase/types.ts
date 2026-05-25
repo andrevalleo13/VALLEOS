@@ -284,7 +284,7 @@ export interface Database {
 
       /* ── Reading ───────────────────────────────────────── */
       reading_items: {
-        Row: { id: string; url: string; title: string | null; summary: string | null; source: string | null; type: string; estimated_minutes: number | null; status: string; notes: string | null; added_at: string; completed_at: string | null };
+        Row: { id: string; url: string; title: string | null; summary: string | null; source: string | null; type: string; estimated_minutes: number | null; status: string; notes: string | null; added_at: string; completed_at: string | null; cover_url: string | null; total_pages: number | null; current_page: number | null };
         Insert: Omit<Database["public"]["Tables"]["reading_items"]["Row"], "id" | "added_at">;
         Update: Partial<Database["public"]["Tables"]["reading_items"]["Insert"]>;
         Relationships: [];

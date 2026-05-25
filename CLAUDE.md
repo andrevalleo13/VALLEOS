@@ -49,7 +49,7 @@ CSS grid: `grid-template-columns: var(--sidebar-w) 1fr` · `grid-template-rows: 
 | `components/shell/CmdK.tsx` | Paleta de comandos (⌘K) — usa `cmdk` |
 | `components/shell/CaptureModal.tsx` | Modal de captura rápida (⌘J) |
 | `components/shell/CierreFlow.tsx` | Flujo de cierre nocturno (⌘.) |
-| `components/shell/AjustesDrawer.tsx` | Drawer de ajustes — temas base, personalización de colores (acento/fondo/texto), fuente, bordes |
+| `components/shell/AjustesDrawer.tsx` | Drawer de ajustes — temas base, personalización de colores (acento/fondo/texto), fuente, bordes. Incluye sección "Memoria de Claude" con botón de sync |
 | `components/shell/AmbientBG.tsx` | Fondo: un solo `<div className="ambient">` con gradientes radiales CSS + grano (`::after`), animado con `ambient-drift`. Sin blobs |
 | `components/shell/FocusBanner.tsx` | Banner de modo foco (barra dorada) |
 | `components/shell/OrbFloating.tsx` | Botón flotante de Shadow — renderiza `<Orb>` (orb-jarvis) |
@@ -164,6 +164,28 @@ Todos los `input[type="date"]`, `input[type="datetime-local"]`, etc. con clase `
 - **Brief del día**: `app/api/shadow/brief/route.ts` (POST) — genera el brief analizando datos del día, lo cachea en `shadow_cache` key `brief:{YYYY-MM-DD}`. Se dispara desde el botón en Brief
 - **Proyección académica**: `app/api/shadow/academia/route.ts` (POST) — analiza materias/calificaciones/exámenes/faltas y genera panorama + materias en riesgo + plan de exámenes + foco. Cachea en `shadow_cache` key `academia:{YYYY-MM-DD}`. Se dispara desde el botón en Panamericana
 - **Análisis financiero**: `app/api/shadow/finanzas/route.ts` (POST) — analiza patrimonio, distribución del gasto, tendencia vs. mes previo y próximos pagos; devuelve 3 bloques (**Lectura** · **En qué se va el dinero** · **Movimientos**). Cachea en `shadow_cache` key `finanzas:{YYYY-MM}`. Se dispara desde el botón en Finanzas
+
+---
+
+## Memoria de Claude — Sync de contexto personal
+Exporta los datos de Valle OS a los archivos de memoria de Claude para que tenga contexto real de la vida de André en futuras conversaciones.
+
+- **Script**: `scripts/sync-memory.js` — CJS, corre con `node scripts/sync-memory.js` sin servidor. Lee `.env.local`, consulta Supabase con service role key y escribe los archivos directamente
+- **API route**: `app/api/shadow/sync-memory/route.ts` (POST) — misma lógica en TypeScript, usa `fs` para escribir a disco. Responde `{ ok, files, syncedAt }`
+- **Botón en Ajustes**: sección "Memoria de Claude" en `AjustesDrawer` — llama la API, muestra estado loading/ok/error con timeout de 3s
+- **Directorio destino**: `~/.claude/projects/-Users-andrevalleortega-Desktop-ValleOS/memory/`
+
+**Archivos que genera:**
+| Archivo | Contenido |
+|---|---|
+| `personal_habits.md` | Hábitos activos, días de schedule, completados/programados 30d, racha actual |
+| `goals_flouvia.md` | Metas con progreso %, hitos, clientes Flouvia con MRR y proyectos |
+| `academia_data.md` | Materias activas, calificaciones, componentes, próximos exámenes con días restantes |
+| `gym_data.md` | Rutina Upper/Lower, ejercicios por día, sesiones recientes, PRs (90d) |
+| `finance_data.md` | Patrimonio neto, cuentas, tarjetas, inversiones, gastos del mes, distribución 30d |
+| `shadow_memory.md` | Hechos persistentes de `shadow_memory` (si existen), agrupados por categoría |
+
+`MEMORY.md` se actualiza automáticamente con links a los archivos nuevos. Cálculos: streak cuenta hacia atrás desde hoy sobre días scheduled; PRs filtran `weight != null && weight > 0`.
 
 ---
 
