@@ -18,6 +18,7 @@ interface Ajustes {
   radius: "compact" | "default" | "round";
   accentColor: string | null;
   sidebarCollapsed: boolean;
+  customColors: Record<string, string>;
 }
 
 interface AppState {
@@ -57,6 +58,7 @@ export const useAppStore = create<AppState>()(
         radius: "default",
         accentColor: null,
         sidebarCollapsed: false,
+        customColors: {},
       },
 
       setLocked: (v) => set({ locked: v }),

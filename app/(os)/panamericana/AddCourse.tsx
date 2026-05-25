@@ -4,8 +4,7 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Modal, Field } from "@/components/Modal";
-
-const COLORS = ["#C9A35F", "#7FA98C", "#5B8DB8", "#8B77CC", "#D96B58"];
+import { ColorPicker } from "@/components/ColorPicker";
 
 export function AddCourse({ variant = "ghost", label = "Materia" }: { variant?: "ghost" | "primary"; label?: string }) {
   const router = useRouter();
@@ -17,7 +16,7 @@ export function AddCourse({ variant = "ghost", label = "Materia" }: { variant?: 
   const [target, setTarget] = useState("9");
   const [code, setCode] = useState("");
   const [maxAbsences, setMaxAbsences] = useState("3");
-  const [color, setColor] = useState(COLORS[0]);
+  const [color, setColor] = useState("#C9A35F");
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -72,12 +71,7 @@ export function AddCourse({ variant = "ghost", label = "Materia" }: { variant?: 
             </Field>
           </div>
           <Field label="Color">
-            <div style={{ display: "flex", gap: 10 }}>
-              {COLORS.map((c) => (
-                <button key={c} onClick={() => setColor(c)} aria-label={c}
-                  style={{ width: 28, height: 28, borderRadius: "50%", background: c, cursor: "pointer", border: color === c ? "2px solid var(--bone)" : "2px solid transparent" }} />
-              ))}
-            </div>
+            <ColorPicker value={color} onChange={setColor} />
           </Field>
           <div className="modal-actions">
             <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>Cancelar</button>

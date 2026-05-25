@@ -49,7 +49,7 @@ CSS grid: `grid-template-columns: var(--sidebar-w) 1fr` · `grid-template-rows: 
 | `components/shell/CmdK.tsx` | Paleta de comandos (⌘K) — usa `cmdk` |
 | `components/shell/CaptureModal.tsx` | Modal de captura rápida (⌘J) |
 | `components/shell/CierreFlow.tsx` | Flujo de cierre nocturno (⌘.) |
-| `components/shell/AjustesDrawer.tsx` | Drawer de ajustes — temas, fuente, acento |
+| `components/shell/AjustesDrawer.tsx` | Drawer de ajustes — temas base, personalización de colores (acento/fondo/texto), fuente, bordes |
 | `components/shell/AmbientBG.tsx` | Fondo: un solo `<div className="ambient">` con gradientes radiales CSS + grano (`::after`), animado con `ambient-drift`. Sin blobs |
 | `components/shell/FocusBanner.tsx` | Banner de modo foco (barra dorada) |
 | `components/shell/OrbFloating.tsx` | Botón flotante de Shadow — renderiza `<Orb>` (orb-jarvis) |
@@ -123,8 +123,17 @@ Todas las páginas usan este patrón:
 - `.seg` / `.seg-btn` — control segmentado (toggle Semana/Mes)
 - `.modal-card-wide` — modal ancho (720px); `Modal` acepta prop `wide`. `.modal-body` ahora hace scroll (max-height 80vh)
 
+### Color picker reutilizable
+`components/ColorPicker.tsx` — chips de presets (10 colores) + botón `+` con `<input type="color">` nativo para color libre. Props: `value: string`, `onChange: (hex) => void`, `presets?: string[]`, `size?: number`. Usar en cualquier lugar donde el usuario elija color hex.
+
 ### Temas disponibles
 `oro-negro` (default) · `marea-fria` · `bosque` · `sangre` · `papel` · `cosmos`
+
+### Personalización de temas
+`lib/themes.ts` — `applyTheme(theme, customColors?)` aplica el tema base y encima sobreescribe variables CSS inline en `:root`. Las customizaciones se guardan en `ajustes.customColors: Record<string, string>` (Zustand persist). Variables personalizables: `--gold`, `--gold-2`, `--gold-glow`, `--bg`, `--bg-deep`, `--bone`, `--bone-dim`. `lib/colors.ts` — utilidades `darken()`, `lighten()`, `toRgba()` para derivar colores relacionados.
+
+### Date inputs estilizados
+Todos los `input[type="date"]`, `input[type="datetime-local"]`, etc. con clase `.input` usan `color-scheme: dark` para que el popup nativo del calendario sea oscuro y respete la estética. El tema `papel` usa `color-scheme: light`.
 
 ---
 

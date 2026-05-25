@@ -5,9 +5,8 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Modal, Field } from "@/components/Modal";
+import { ColorPicker } from "@/components/ColorPicker";
 import type { Habit } from "@/lib/supabase/types";
-
-const COLORS = ["#C9A35F", "#7FA98C", "#5B8DB8", "#8B77CC", "#D96B58"];
 const WEEKDAYS = ["D", "L", "M", "M", "J", "V", "S"];
 const RANGE = 140;
 
@@ -24,7 +23,7 @@ export default function HabitosPage() {
 
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
-  const [newColor, setNewColor] = useState(COLORS[0]);
+  const [newColor, setNewColor] = useState("#C9A35F");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { load(); }, []);
@@ -74,7 +73,7 @@ export default function HabitosPage() {
       daily_target: null, color: newColor, icon: null, freezes_available: 0,
       schedule_days: [0, 1, 2, 3, 4, 5, 6],
     });
-    setSaving(false); setCreating(false); setNewName(""); setNewColor(COLORS[0]);
+    setSaving(false); setCreating(false); setNewName(""); setNewColor("#C9A35F");
     await load();
   }
 
@@ -376,19 +375,7 @@ export default function HabitosPage() {
             />
           </Field>
           <Field label="Color">
-            <div style={{ display: "flex", gap: 10 }}>
-              {COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setNewColor(c)}
-                  style={{
-                    width: 28, height: 28, borderRadius: "50%", background: c, cursor: "pointer",
-                    border: newColor === c ? "2px solid var(--bone)" : "2px solid transparent",
-                  }}
-                  aria-label={c}
-                />
-              ))}
-            </div>
+            <ColorPicker value={newColor} onChange={setNewColor} />
           </Field>
           <div className="modal-actions">
             <button className="btn btn-ghost btn-sm" onClick={() => setCreating(false)}>Cancelar</button>

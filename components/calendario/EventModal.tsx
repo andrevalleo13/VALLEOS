@@ -15,12 +15,17 @@ export interface CalEvent {
 }
 
 const COLORS: { id: string; v: string; label: string }[] = [
-  { id: "5", v: "var(--gold)", label: "Oro" },
-  { id: "1", v: "var(--blue)", label: "Azul" },
-  { id: "2", v: "var(--green)", label: "Verde" },
-  { id: "3", v: "var(--violet)", label: "Violeta" },
-  { id: "4", v: "var(--red)", label: "Rojo" },
-  { id: "8", v: "var(--mute)", label: "Gris" },
+  { id: "5",  v: "var(--gold)",   label: "Oro" },
+  { id: "1",  v: "var(--blue)",   label: "Azul" },
+  { id: "2",  v: "var(--green)",  label: "Verde" },
+  { id: "3",  v: "var(--violet)", label: "Violeta" },
+  { id: "4",  v: "var(--red)",    label: "Rojo" },
+  { id: "8",  v: "var(--mute)",   label: "Gris" },
+  { id: "6",  v: "#F4511E",       label: "Naranja" },
+  { id: "7",  v: "#039BE5",       label: "Pavo real" },
+  { id: "9",  v: "#3F51B5",       label: "Índigo" },
+  { id: "10", v: "#0B8043",       label: "Esmeralda" },
+  { id: "11", v: "#D50000",       label: "Tomate" },
 ];
 
 function pad(n: number) {

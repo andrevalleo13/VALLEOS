@@ -1609,7 +1609,7 @@
   right: 0;
   bottom: 0;
   z-index: 76;
-  width: 360px;
+  width: 400px;
   background: var(--bg-card);
   border-left: 1px solid var(--glass-bd-2);
   display: flex;
@@ -2362,6 +2362,30 @@
 
 .input:focus { border-color: var(--glass-bd-2); }
 .input::placeholder { color: var(--mute); }
+
+input[type="date"].input,
+input[type="datetime-local"].input,
+input[type="time"].input,
+input[type="month"].input {
+  color-scheme: dark;
+}
+
+[data-theme="papel"] input[type="date"].input,
+[data-theme="papel"] input[type="datetime-local"].input,
+[data-theme="papel"] input[type="time"].input,
+[data-theme="papel"] input[type="month"].input {
+  color-scheme: light;
+}
+
+::-webkit-calendar-picker-indicator {
+  filter: invert(0.75) sepia(0.1) opacity(0.6);
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 2px;
+}
+::-webkit-calendar-picker-indicator:hover {
+  filter: invert(0.9) sepia(0.15) opacity(0.9);
+}
 
 .input-label {
   font-family: var(--f-mono);
