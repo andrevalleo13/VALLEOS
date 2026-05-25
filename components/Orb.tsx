@@ -1,7 +1,16 @@
 "use client";
 import type { CSSProperties } from "react";
 
-type OrbState = "idle" | "thinking";
+export type OrbState = "idle" | "listening" | "thinking" | "speaking" | "success" | "alert";
+
+const STATE_CLASS: Record<OrbState, string> = {
+  idle: "",
+  listening: "orb-listening",
+  thinking: "orb-thinking",
+  speaking: "orb-speaking",
+  success: "orb-success",
+  alert: "orb-alert",
+};
 
 export function Orb({
   size = 64,
@@ -16,7 +25,7 @@ export function Orb({
 }) {
   return (
     <span
-      className={`orb-jarvis${state === "thinking" ? " orb-thinking" : ""} ${className}`}
+      className={`orb-jarvis ${STATE_CLASS[state]} ${className}`}
       style={{ ["--orb-size" as string]: `${size}px`, ...style }}
       aria-hidden
     />

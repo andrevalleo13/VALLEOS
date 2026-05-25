@@ -1,7 +1,7 @@
 import { Sidebar } from "@/components/shell/Sidebar";
 import { Topbar } from "@/components/shell/Topbar";
 import { AmbientBG } from "@/components/shell/AmbientBG";
-import { OrbFloating } from "@/components/shell/OrbFloating";
+import { VoiceOrb } from "@/components/shell/VoiceOrb";
 import { CmdK } from "@/components/shell/CmdK";
 import { CaptureModal } from "@/components/shell/CaptureModal";
 import { CierreFlow } from "@/components/shell/CierreFlow";
@@ -18,7 +18,7 @@ export default function OSLayout({ children }: { children: React.ReactNode }) {
         <Topbar />
         <main className="shell-content">{children}</main>
       </div>
-      <OrbFloating />
+      <VoiceOrb />
       <CmdK />
       <CaptureModal />
       <CierreFlow />

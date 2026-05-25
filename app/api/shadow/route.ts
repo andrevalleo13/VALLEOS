@@ -30,7 +30,12 @@ const BASE_SYSTEM = `Eres Shadow, el asistente de IA personal de André Valle Or
 - Lo urgente o importante, primero
 - Dinero en MXN por defecto`;
 
-async function buildSystemPrompt(supabase: Awaited<ReturnType<typeof createClient>>): Promise<string> {
+type ShadowContext = { page?: string; pathname?: string; voice?: boolean };
+
+async function buildSystemPrompt(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  context?: ShadowContext,
+): Promise<string> {
   const today = new Date().toLocaleDateString("es-MX", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
@@ -56,12 +61,24 @@ async function buildSystemPrompt(supabase: Awaited<ReturnType<typeof createClien
     memorySection = `\n\n## Memoria persistente\n${parts.join("\n\n")}`;
   }
 
-  return `${BASE_SYSTEM}${memorySection}\n\nFecha actual: ${today}`;
+  let contextSection = "";
+  if (context?.page) {
+    contextSection = `\n\n## Contexto actual\nAndré está viendo la página "${context.page}" (${context.pathname ?? ""}). Si pregunta algo ambiguo (p. ej. "¿y este mes qué tal?", "¿cómo voy?"), asume que se refiere a esta sección y usa la herramienta de consulta correspondiente antes de responder.`;
+  }
+  if (context?.voice) {
+    contextSection += `\n\n## Modo voz\nEstás respondiendo por voz: tu texto se lee en voz alta. Sé breve y conversacional (1-3 frases). Nada de listas con viñetas, markdown, asteriscos ni emojis: escribe en prosa natural y fácil de pronunciar. Da el dato clave primero.`;
+  }
+
+  return `${BASE_SYSTEM}${memorySection}${contextSection}\n\nFecha actual: ${today}`;
 }
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const { conversationId, message } = (await req.json()) as { conversationId?: string; message: string };
+  const { conversationId, message, context } = (await req.json()) as {
+    conversationId?: string;
+    message: string;
+    context?: ShadowContext;
+  };
 
   let convId = conversationId;
   if (!convId) {
@@ -89,7 +106,7 @@ export async function POST(req: NextRequest) {
       .eq("conversation_id", convId)
       .order("created_at", { ascending: true })
       .limit(40),
-    buildSystemPrompt(supabase),
+    buildSystemPrompt(supabase, context),
   ]);
 
   const messages: Anthropic.MessageParam[] = (history ?? [])
@@ -144,6 +161,7 @@ export async function POST(req: NextRequest) {
             const result = await executeTool(tu.name, tu.input, supabase, capturedConvId);
             toolSummaries.push(result.summary);
             send({ type: "tool_result", name: tu.name, ok: result.ok, summary: result.summary });
+            send({ type: "mood", mood: result.ok ? "success" : "alert" });
             toolResults.push({
               type: "tool_result",
               tool_use_id: tu.id,
