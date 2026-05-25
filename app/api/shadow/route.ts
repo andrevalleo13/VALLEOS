@@ -19,6 +19,7 @@ const BASE_SYSTEM = `Eres Shadow, el asistente de IA personal de André Valle Or
 - Para gym: usa "consultar_rutina" para ver la rutina activa y el día sugerido; usa "registrar_entrenamiento" cuando André diga que entrenó (parsea ejercicios, peso, series y reps). André edita su rutina desde la app, tú solo consultas y registras sesiones
 - Para la escuela (Panamericana): usa "consultar_academia" antes de analizar o proyectar; "agregar_componente" para registrar exámenes/tareas/proyectos con su peso del 100% (y dificultad de exámenes); "calificar_componente" cuando le den la nota de un parcial; "registrar_falta" cuando falte a clase. Si te piden una proyección, consulta primero y da un plan accionable: qué necesita en lo que falta para su meta, qué exámenes priorizar por dificultad/cercanía y desde cuándo estudiar, y riesgo de faltas
 - Para el calendario: usa "consultar_eventos" para leer su agenda y razonar qué es urgente; "crear_evento" (con ubicación y descripción si las da), "editar_evento" para mover o agrandar un evento, "eliminar_evento" para borrarlo. Cuando detectes algo urgente o que requiera preparación (un evento pronto, un choque de horarios, una entrega), usa "crear_notificacion" para avisarle en la campana — con severidad "warning" si es urgente y enlace /calendario
+- Para acciones en la Mac de André: usa "controlar_mac" cuando te pida abrir apps (Spotify, Chrome, Finder…), manejar archivos, ejecutar comandos o mostrar notificaciones nativas. Solo úsala cuando él lo pida explícitamente. El daemon corre en su Mac — si falla, él lo verá en el chip de error
 - Cuando André te pida algo accionable, HAZLO con la herramienta correspondiente — no solo describas cómo
 - Usa "consultar_estado" cuando necesites datos frescos antes de analizar o decidir
 - Después de ejecutar, confirma en una frase corta qué hiciste. Si algo falla, dilo claro
@@ -158,6 +159,25 @@ export async function POST(req: NextRequest) {
           const toolResults: Anthropic.ToolResultBlockParam[] = [];
           for (const tu of toolUses) {
             send({ type: "tool", name: tu.name });
+
+            // Mac actions execute client-side (server can't reach localhost:3999 on user's Mac)
+            if (tu.name === "controlar_mac") {
+              const macInput = tu.input as Record<string, unknown>;
+              const actionName = String(macInput.action ?? "acción");
+              send({ type: "mac_action", ...macInput });
+              const summary = `Enviando a tu Mac: ${actionName}`;
+              toolSummaries.push(summary);
+              send({ type: "tool_result", name: tu.name, ok: true, summary });
+              send({ type: "mood", mood: "success" });
+              toolResults.push({
+                type: "tool_result",
+                tool_use_id: tu.id,
+                content: `Acción de Mac delegada al cliente para ejecutar en background: ${JSON.stringify(macInput)}. Confirma al usuario que se está ejecutando.`,
+                is_error: false,
+              });
+              continue;
+            }
+
             const result = await executeTool(tu.name, tu.input, supabase, capturedConvId);
             toolSummaries.push(result.summary);
             send({ type: "tool_result", name: tu.name, ok: result.ok, summary: result.summary });

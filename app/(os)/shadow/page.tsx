@@ -5,6 +5,7 @@ import {
   Activity, Target, Sparkles, Brain,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { callDaemon } from "@/lib/daemon";
 import { formatCurrency } from "@/lib/utils";
 import { ShadowOrb } from "@/components/shell/ShadowOrb";
 import type { ShadowConversation } from "@/lib/supabase/types";
@@ -164,6 +165,22 @@ export default function ShadowPage() {
                 }
               }
               return { ...m, actions };
+            });
+          } else if (ev.type === "mac_action") {
+            const macAction = String(ev.action ?? "acción");
+            const chipName = `mac:${ev.action}:${Date.now()}`;
+            updateLastAssistant((m) => ({ ...m, actions: [...(m.actions ?? []), { name: chipName, running: true }] }));
+            void callDaemon(ev as Record<string, unknown>).then((r) => {
+              updateLastAssistant((m) => {
+                const actions = [...(m.actions ?? [])];
+                for (let i = actions.length - 1; i >= 0; i--) {
+                  if (actions[i].name === chipName && actions[i].running) {
+                    actions[i] = { name: chipName, summary: r.ok ? `✓ ${macAction}` : `⚠ ${r.error ?? "Daemon no activo"}`, ok: r.ok, running: false };
+                    break;
+                  }
+                }
+                return { ...m, actions };
+              });
             });
           } else if (ev.type === "error") {
             updateLastAssistant((m) => ({ ...m, text: m.text + `\n\n⚠ ${ev.message}` }));

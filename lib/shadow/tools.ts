@@ -264,6 +264,29 @@ export const SHADOW_TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "controlar_mac",
+    description:
+      "Ejecuta una acción en la Mac de André: abrir apps, abrir URLs, leer/escribir/eliminar archivos, listar directorios, ejecutar comandos de shell, mostrar notificaciones nativas y obtener contexto de la pantalla (app activa + portapapeles). IMPORTANTE: solo úsala cuando André te lo pida explícitamente. Solo disponible cuando el daemon local corre en su Mac.",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["open_app", "open_url", "read_file", "write_file", "delete_file", "list_dir", "run_shell", "notify_mac", "get_context"],
+          description: "Qué hacer",
+        },
+        app: { type: "string", description: "Nombre de la app (para open_app), ej. Spotify, Chrome, Finder" },
+        url: { type: "string", description: "URL a abrir (para open_url)" },
+        path: { type: "string", description: "Ruta del archivo o directorio. Soporta ~ para home." },
+        content: { type: "string", description: "Contenido a escribir (para write_file)" },
+        cmd: { type: "string", description: "Comando de shell a ejecutar (para run_shell)" },
+        title: { type: "string", description: "Título (para notify_mac)" },
+        body: { type: "string", description: "Cuerpo del mensaje (para notify_mac)" },
+      },
+      required: ["action"],
+    },
+  },
+  {
     name: "crear_notificacion",
     description:
       "Crea una notificación que aparece en la campana del topbar de André (centro de notificaciones). Úsala para avisarle de algo importante o urgente: un evento próximo, un recordatorio, una alerta. Sé específico y breve.",

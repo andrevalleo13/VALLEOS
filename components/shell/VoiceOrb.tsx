@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { Mic, MicOff, X, Send } from "lucide-react";
 import { Orb, type OrbState } from "@/components/Orb";
+import { callDaemon } from "@/lib/daemon";
 
 /* ── Minimal Web Speech API typings ───────────────────────────────── */
 type SRResult = { isFinal: boolean; 0: { transcript: string } };
@@ -240,6 +241,22 @@ export function VoiceOrb() {
                 }
               }
               return u;
+            });
+          } else if (ev.type === "mac_action") {
+            const macAction = ev.action as string;
+            const chipName = `mac:${macAction}:${Date.now()}`;
+            setActions((a) => [...a, { name: chipName, running: true }]);
+            void callDaemon(ev).then((r) => {
+              setActions((a) => {
+                const u = [...a];
+                for (let i = u.length - 1; i >= 0; i--) {
+                  if (u[i].name === chipName && u[i].running) {
+                    u[i] = { name: chipName, summary: r.ok ? `✓ ${macAction}` : `⚠ ${r.error ?? "Daemon no activo"}`, ok: r.ok, running: false };
+                    break;
+                  }
+                }
+                return u;
+              });
             });
           } else if (ev.type === "mood") {
             setMood(ev.mood as "success" | "alert");
