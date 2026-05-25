@@ -164,6 +164,7 @@ Todos los `input[type="date"]`, `input[type="datetime-local"]`, etc. con clase `
 - **Brief del día**: `app/api/shadow/brief/route.ts` (POST) — genera el brief analizando datos del día, lo cachea en `shadow_cache` key `brief:{YYYY-MM-DD}`. Se dispara desde el botón en Brief
 - **Proyección académica**: `app/api/shadow/academia/route.ts` (POST) — analiza materias/calificaciones/exámenes/faltas y genera panorama + materias en riesgo + plan de exámenes + foco. Cachea en `shadow_cache` key `academia:{YYYY-MM-DD}`. Se dispara desde el botón en Panamericana
 - **Análisis financiero**: `app/api/shadow/finanzas/route.ts` (POST) — analiza patrimonio, distribución del gasto, tendencia vs. mes previo y próximos pagos; devuelve 3 bloques (**Lectura** · **En qué se va el dinero** · **Movimientos**). Cachea en `shadow_cache` key `finanzas:{YYYY-MM}`. Se dispara desde el botón en Finanzas
+- **Análisis de negocio (Flouvia)**: `app/api/shadow/flouvia/route.ts` (POST) — analiza pipeline, MRR, conversión propuesta→activo, proyectos activos e ingresos de 6 meses; devuelve 3 bloques (**Lectura** · **Oportunidades** [upsell/cowork/sinergias] · **Movimientos**). Cachea en `shadow_cache` key `flouvia:{YYYY-MM}`. Se dispara desde el botón en Flouvia
 
 ---
 
@@ -200,6 +201,16 @@ Exporta los datos de Valle OS a los archivos de memoria de Claude para que tenga
 
 ---
 
+## Flouvia — Negocio / agencia (módulo 08)
+- **Ruta**: `app/(os)/flouvia/page.tsx` (server: carga clientes + proyectos no cancelados + facturas de 6 meses + follow-ups pendientes + análisis cacheado) → `FlouviaClient.tsx` (dashboard cliente que computa KPIs/gráfica y persiste vía edición inline). El header (server) muestra contador de activos/propuestas
+- **Modelo de datos**: `flouvia_clients` (`status` propuesta/activo/pausado/completado, `project_value`, `monthly_value` = MRR, `description`, `notes`, `sort_order`) → `flouvia_projects` (`status` scoping/in_progress/review/delivered/cancelled, `total_value`, `estimated_hours`/`actual_hours`, `deadline`) · `flouvia_invoices` (`status` draft/sent/paid/overdue/cancelled, `total`, `issued_date`, `paid_date`) · `flouvia_contacts` · `flouvia_followups` (`title`, `due_date`, `done`)
+- **Dashboard** (`FlouviaClient`): botones (Cliente · Proyecto) · KPIs (Pipeline activo, MRR, Cobrado este mes, Por cobrar) · **gráfica de ingresos** SVG a mano de 6 meses (verde cobrado / azul pendiente, mes actual en dorado) · panel **análisis de Shadow** (`Analysis.tsx`) · follow-ups pendientes con botón "Listo" inline · **kanban** de 4 columnas (clic en card → editar cliente) · lista de proyectos (clic → editar proyecto)
+- **Edición**: todo es editable después de creado. Clic en card del kanban abre modal pre-llenado (nombre, estado, valor proyecto, MRR, descripción, notas) con eliminar. Clic en proyecto abre modal (nombre, cliente, estado, valor, horas, deadline, descripción) con eliminar; el botón "Proyecto" abre el mismo modal en blanco. Los inserts de `flouvia_projects` usan cast `as any` (typing estricto de supabase-js)
+- **Islas**: `AddClient.tsx` (crear cliente, usado en header y pie de cada columna), `Analysis.tsx` (panel de Shadow, mismo patrón y clases `.fin-analysis-*` que Finanzas). El resto (gráfica, kanban editable, modales de edición de cliente/proyecto, follow-ups) vive dentro de `FlouviaClient`
+- **Conexión con Shadow**: análisis de negocio vía `app/api/shadow/flouvia/route.ts` (ver sección Shadow). El ticker del topbar usa `flouvia_clients.monthly_value` de activos como MRR
+
+---
+
 ## Academia — Panamericana (módulo 09)
 - **Ruta**: `app/(os)/panamericana/page.tsx` (server: carga materias activas + `grade_components` + entregas pendientes + `class_schedule` + análisis cacheado) → `PanamericanaClient.tsx` (dashboard cliente que computa todo y persiste vía islas)
 - **Modelo de datos**: `academic_courses` (materia, `target_grade`, `color`, `absences`/`max_absences` para faltas) → `grade_components` (el esquema de calificación: cada componente del 100% con `kind` examen/tarea/proyecto/participacion/otro, `weight`, `grade` 0-10, `date`; los exámenes llevan `difficulty` 1-5, `study_start_date` y `topics`). `class_schedule` (horario: `day_of_week` 0-6, `start_time`/`end_time`, `room`). `assignments` sigue siendo el tracker de entregas/tareas con fecha
@@ -221,6 +232,17 @@ Exporta los datos de Valle OS a los archivos de memoria de Claude para que tenga
 
 ---
 
+## Lectura — Lista de lectura (módulo 12)
+- **Ruta**: `app/(os)/lectura/page.tsx` (server: carga `reading_items` excluyendo archivados) — libros y contenido se separan dentro de cada sección (Leyendo / Por leer / Completados)
+- **Modelo de datos**: `reading_items` — `type` (`article`|`video`|`podcast`|`paper`|`book`|`other`), `status` (`pending`|`reading`|`done`|`archived`), `title`, `url`, `source` (autor), `summary`, `notes`, `estimated_minutes` (para no-libros), `cover_url` (URL imagen portada, libros), `total_pages` / `current_page` (progreso, libros), `completed_at`. Migración aditiva: `supabase/lectura.sql`
+- **Dos tipos de card** (client components, cada uno maneja su estado y edición):
+  - `BookCard.tsx` — tarjeta horizontal con portada CSS (color determinista por título o imagen si hay `cover_url`; efecto spine con sombra inset). Barra de progreso + input de página actual editable inline (actualiza `current_page` en Supabase al `onBlur`). Botones: ciclar estado · Editar · Ver (si hay URL)
+  - `ContentCard.tsx` — tarjeta compacta con ícono de tipo coloreado por variante (azul artículo, rojo video, violeta podcast). Ciclar estado inline + botón de editar con ícono
+- **Islas**: `AddReading.tsx` (modal agregar — campos dinámicos: libros muestran `cover_url`+`total_pages`, contenido muestra `estimated_minutes`), `EditReading.tsx` (modal editar todo + archivar; campos dinámicos igual que Add), `BookCard.tsx`, `ContentCard.tsx`
+- **Clases CSS**: `.rd-book-card`, `.rd-cover`, `.rd-cover-initial`, `.rd-book-info`, `.rd-book-title`, `.rd-book-author`, `.rd-book-summary`, `.rd-progress-wrap`, `.rd-progress-bar`, `.rd-progress-fill`, `.rd-progress-meta`, `.rd-page-input`, `.rd-book-actions`, `.rd-content-card`, `.rd-content-type`, `.rd-content-info`, `.rd-content-header`, `.rd-content-title`, `.rd-content-actions`, `.rd-content-meta`, `.rd-content-summary`, `.rd-icon-btn`
+
+---
+
 ## Supabase — Tipos
 Archivo: `lib/supabase/types.ts`
 
@@ -233,7 +255,7 @@ const data = result.data as unknown as MiTipo[];
 
 Tablas principales: `user_preferences`, `habits`, `habit_completions`, `financial_entries`, `bank_accounts`, `credit_cards`, `investments`, `flouvia_clients`, `flouvia_projects`, `shadow_conversations`, `shadow_messages`, `shadow_memory`, `shadow_cache`, `notifications`, `brain_notes`, `goals`, `goal_milestones`, `capital_goals`, `health_entries`, `reading_items`, `custom_pages`, `time_logs`, `academic_courses` (incluye `absences`/`max_absences`), `grade_components`, `class_schedule`, `assignments`, `semesters`, `priorities`, `daily_notes`, `workout_routines`, `workout_days`, `workout_exercises`, `workout_sessions`, `workout_sets`.
 
-Schema completo en `supabase/schema.sql` — correr en Supabase SQL Editor para crear/recrear tablas. Migraciones aditivas (sin borrar datos): `supabase/gym.sql`, `supabase/academia.sql` (faltas + `grade_components`), `supabase/finanzas.sql` (`financial_entries.account_id` + `credit_cards.statement_balance` + índices).
+Schema completo en `supabase/schema.sql` — correr en Supabase SQL Editor para crear/recrear tablas. Migraciones aditivas (sin borrar datos): `supabase/gym.sql`, `supabase/academia.sql` (faltas + `grade_components`), `supabase/finanzas.sql` (`financial_entries.account_id` + `credit_cards.statement_balance` + índices), `supabase/lectura.sql` (`reading_items.cover_url` + `total_pages` + `current_page`).
 
 ---
 
@@ -262,17 +284,19 @@ Schema completo en `supabase/schema.sql` — correr en Supabase SQL Editor para 
 ---
 
 ## Páginas — server shell + islas cliente
-Patrón: la página es **server component** (SSR, carga datos) y las acciones interactivas son **islas cliente** (`"use client"`) que escriben a Supabase y llaman `router.refresh()`. Ejemplos de islas: `finanzas/AddEntry`+`AddAccount`+`AddCard`, `flouvia/AddClient`, `metas/AddGoal`+`GoalProgress`, `salud/LogHealth`, `lectura/AddReading`+`ReadingStatus`, `tiempo/LogTime`, `panamericana/AddCourse`+`AddComponent`+`AddAssignment`+`AddClass`.
+Patrón: la página es **server component** (SSR, carga datos) y las acciones interactivas son **islas cliente** (`"use client"`) que escriben a Supabase y llaman `router.refresh()`. Ejemplos de islas: `finanzas/AddEntry`+`AddAccount`+`AddCard`, `flouvia/AddClient`, `metas/AddGoal`+`GoalProgress`, `salud/LogHealth`, `lectura/AddReading`+`BookCard`+`ContentCard`+`EditReading`, `tiempo/LogTime`, `panamericana/AddCourse`+`AddComponent`+`AddAssignment`+`AddClass`.
 
 | Server (con islas cliente) | Client components completos |
 |---|---|
-| finanzas, flouvia, metas, salud, lectura, tiempo, centro | brief (`BriefClient`), shadow, habitos, brain, paginas, config, calendario, gym (`GymClient`), panamericana (`PanamericanaClient` + islas `AddCourse`/`AddComponent`/`AddAssignment`/`AddClass`) |
+| finanzas, metas, salud, lectura, tiempo, centro | brief (`BriefClient`), shadow, habitos, brain, paginas, config, calendario, gym (`GymClient`), panamericana (`PanamericanaClient` + islas `AddCourse`/`AddComponent`/`AddAssignment`/`AddClass`), flouvia (`FlouviaClient` + islas `AddClient`/`Analysis`) |
 
 **Qué guarda cada página** (todo persiste a Supabase):
 - **Brief**: prioridades (check/agregar/borrar), intención editable, toggle de hábitos, brief generado por Shadow, agenda del día
 - **Hábitos v2**: tracker diario con check-off satisfactorio (anillo de progreso), calendario heatmap mensual (perfecto/parcial/fallado), stats de racha actual/mejor/% del mes/días perfectos, y strip de 30 días por hábito. Permite backfill clickeando días pasados del calendario
 - **Finanzas**: dashboard de dinero — agregar cuentas/tarjetas/movimientos, gráficas (distribución + tendencia), próximos pagos, análisis de Shadow (ver sección Finanzas arriba)
-- **Flouvia/Metas/Salud/Lectura/Tiempo**: crear registros + acciones (progreso de metas, ciclo de estado en lectura)
+- **Flouvia**: dashboard de negocio interactivo — KPIs + gráfica de ingresos de 6 meses, análisis de Shadow, kanban de clientes y proyectos editables inline, follow-ups (ver sección Flouvia arriba)
+- **Metas/Salud/Tiempo**: crear registros + acciones (progreso de metas)
+- **Lectura**: libros con portada CSS + progreso de páginas inline (`BookCard`); artículos/videos/podcasts como cards compactas (`ContentCard`); editar y archivar desde `EditReading` (ver sección Lectura arriba)
 - **Gym**: dashboard interactivo de entrenamiento (ver sección Gym arriba)
 - **Panamericana**: dashboard académico interactivo — esquema de calificación por materia, calificar parciales inline, faltas, exámenes por dificultad + cuándo estudiar, horario y proyección de Shadow (ver sección Academia arriba)
 
