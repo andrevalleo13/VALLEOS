@@ -72,8 +72,32 @@ export default function ObsidianVault() {
     if (ok) {
       setShowSetup(false);
       loadFolder("");
-      // Auto-sync the configured sync folder (Brain/ by default) to Supabase so Shadow stays updated
-      autoSyncFolder(getObsidianFolder());
+      const syncFolder = getObsidianFolder();
+      autoSyncFolder(syncFolder);
+      flushShadowOutbox(syncFolder);
+    }
+  }
+
+  // Push notes Shadow created (in Supabase) that haven't reached the vault yet
+  async function flushShadowOutbox(folder: string) {
+    const { data: pending } = await supabase
+      .from("brain_notes")
+      .select("id, title, content")
+      .is("obsidian_path", null)
+      .in("source", ["shadow", "quick_capture"]);
+    if (!pending?.length) return;
+
+    for (const note of pending) {
+      try {
+        const raw = note.title ?? note.content.split("\n").find((l: string) => l.trim()) ?? note.content.slice(0, 60);
+        const safe = raw.replace(/[/\\:*?"<>|#[\]^]/g, "").slice(0, 80).trim() ||
+          new Date().toISOString().slice(0, 16).replace(/:/g, "-");
+        const path = `${folder}/${safe}.md`;
+        await writeNote(path, `# ${raw}\n\n${note.content}\n`);
+        await supabase.from("brain_notes").update({ obsidian_path: path }).eq("id", note.id);
+      } catch {
+        // If Obsidian can't write this note, skip and continue
+      }
     }
   }
 
