@@ -1,158 +1,219 @@
 import { createClient } from "@/lib/supabase/server";
+import type { HealthEntry, WeightLog } from "@/lib/supabase/types";
 import { LogHealth } from "./LogHealth";
+import { LogWeight } from "./LogWeight";
+import { SaludCharts } from "./SaludCharts";
+import { Analysis } from "./Analysis";
+import {
+  avg, weightStats, sleepDebt, compareWindows, correlate, corrLabel, sleepColor, SLEEP_TARGET,
+} from "@/lib/salud/health";
 
 export const revalidate = 0;
 
-function avg(vals: (number | null)[]): number | null {
-  const v = vals.filter((x) => x !== null) as number[];
-  return v.length ? Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10 : null;
+function deltaTag(delta: number | null, unit: string, goodUp = true) {
+  if (delta == null || delta === 0) return null;
+  const up = delta > 0;
+  const good = goodUp ? up : !up;
+  return (
+    <span className="sl-delta" style={{ color: good ? "var(--green)" : "var(--red)" }}>
+      {up ? "▲" : "▼"} {Math.abs(delta)}{unit}
+    </span>
+  );
 }
 
 export default async function SaludPage() {
   const supabase = await createClient();
+  const today = new Date().toISOString().split("T")[0];
+  const month = today.slice(0, 7);
+  const since30 = new Date(Date.now() - 29 * 86400000).toISOString().split("T")[0];
+  const since180 = new Date(Date.now() - 179 * 86400000).toISOString().split("T")[0];
 
-  const { data: entries } = await supabase
-    .from("health_entries")
-    .select("*")
-    .order("date", { ascending: false })
-    .limit(14);
+  const [{ data: entriesRaw }, { data: weightsRaw }, { data: cache }] = await Promise.all([
+    supabase.from("health_entries").select("*").gte("date", since30).order("date", { ascending: false }),
+    supabase.from("weight_logs").select("*").gte("date", since180).order("date", { ascending: true }),
+    supabase.from("shadow_cache").select("content, generated_at").eq("key", `salud:${month}`).single(),
+  ]);
 
-  const latest = entries?.[0] ?? null;
-  const last7 = (entries ?? []).slice(0, 7);
+  const entries = (entriesRaw ?? []) as HealthEntry[];
+  const weights = (weightsRaw ?? []) as WeightLog[];
+  const latest = entries[0] ?? null;
+  const last7 = entries.slice(0, 7);
 
+  const w = weightStats(weights);
   const avgSleep = avg(last7.map((e) => e.sleep_hours));
   const avgMood = avg(last7.map((e) => e.mood));
   const avgEnergy = avg(last7.map((e) => e.energy));
+  const avgSteps = avg(last7.map((e) => e.steps));
+  const debt = sleepDebt(last7);
 
-  const WEEK = ["D", "L", "M", "M", "J", "V", "S"];
-  const maxSleep = Math.max(...last7.map((e) => e.sleep_hours ?? 0), 8);
+  const sleepCmp = compareWindows(entries, "sleep_hours");
+  const moodCmp = compareWindows(entries, "mood");
+  const energyCmp = compareWindows(entries, "energy");
+  const stepsCmp = compareWindows(entries, "steps");
+
+  const corrSleepMood = correlate(entries, "sleep_hours", "mood");
+  const corrSleepEnergy = correlate(entries, "sleep_hours", "energy");
+
+  const chronological = [...entries].reverse();
+  const days = chronological.slice(-14).map((e) => ({
+    date: e.date,
+    sleep: e.sleep_hours,
+    mood: e.mood,
+    energy: e.energy,
+    steps: e.steps,
+  }));
+  const weightPoints = weights.map((l) => ({ date: l.date, weight: l.weight_kg }));
+
+  // Heatmap de sueño: últimos 30 días
+  const byDate = new Map(entries.map((e) => [e.date, e]));
+  const heatDays: { date: string; sleep: number | null }[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000).toISOString().split("T")[0];
+    heatDays.push({ date: d, sleep: byDate.get(d)?.sleep_hours ?? null });
+  }
+
+  const empty = entries.length === 0 && weights.length === 0;
 
   return (
     <div>
       <div className="page-header">
-        <div className="flex items-start justify-between">
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div>
             <p className="eyebrow mb-2">10 · BIENESTAR</p>
             <h1 className="page-title">Salud.</h1>
           </div>
-          <LogHealth />
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <LogWeight />
+            <LogHealth />
+          </div>
         </div>
       </div>
 
       <div className="page-body">
-        {/* Today snapshot */}
-        {latest && (
-          <div className="card mb-6" style={{ borderColor: "var(--glass-bd-2)" }}>
-            <p className="eyebrow mb-3">Último registro · {latest.date}</p>
-            <div className="grid grid-cols-3 gap-4 md:grid-cols-6">
-              {[
-                { label: "Sueño", val: latest.sleep_hours ? `${latest.sleep_hours}h` : "—", color: "var(--violet)" },
-                { label: "Calidad", val: latest.sleep_quality ? `${latest.sleep_quality}/5` : "—", color: "var(--blue)" },
-                { label: "Peso", val: latest.weight_kg ? `${latest.weight_kg}kg` : "—", color: "var(--bone)" },
-                { label: "Mood", val: latest.mood ? `${latest.mood}/5` : "—", color: "var(--gold)" },
-                { label: "Energía", val: latest.energy ? `${latest.energy}/5` : "—", color: "var(--green)" },
-                { label: "Ejercicio", val: latest.workout_minutes ? `${latest.workout_minutes}min` : "—", color: "var(--red)" },
-              ].map((m) => (
-                <div key={m.label} className="card-sm text-center">
-                  <p style={{ fontFamily: "var(--f-mono)", fontSize: 20, color: m.color }}>{m.val}</p>
-                  <p className="tick">{m.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 7-day averages */}
-        {last7.length > 0 && (
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <div className="card text-center">
-              <p style={{ fontFamily: "var(--f-mono)", fontSize: 28, color: "var(--violet)" }}>
-                {avgSleep ?? "—"}h
-              </p>
-              <p className="metric-label">Sueño promedio (7d)</p>
-            </div>
-            <div className="card text-center">
-              <p style={{ fontFamily: "var(--f-mono)", fontSize: 28, color: "var(--gold)" }}>
-                {avgMood ?? "—"}/5
-              </p>
-              <p className="metric-label">Mood promedio (7d)</p>
-            </div>
-            <div className="card text-center">
-              <p style={{ fontFamily: "var(--f-mono)", fontSize: 28, color: "var(--green)" }}>
-                {avgEnergy ?? "—"}/5
-              </p>
-              <p className="metric-label">Energía promedio (7d)</p>
-            </div>
-          </div>
-        )}
-
-        {/* Sleep chart */}
-        {last7.length > 0 && (
-          <div className="card mb-6">
-            <p className="eyebrow mb-4">Sueño — últimos 7 días</p>
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 12, height: 120 }}>
-              {[...last7].reverse().map((e, i) => {
-                const h = e.sleep_hours ?? 0;
-                const pct = maxSleep > 0 ? (h / maxSleep) * 100 : 0;
-                return (
-                  <div key={e.date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                    <span className="tick" style={{ fontSize: 10 }}>{h ? `${h}h` : "—"}</span>
-                    <div
-                      style={{
-                        width: "100%",
-                        height: `${Math.max(pct, 5)}px`,
-                        background: h >= 7.5 ? "var(--green)" : h >= 6 ? "var(--gold)" : "var(--red)",
-                        borderRadius: "4px 4px 0 0",
-                        minHeight: 8,
-                      }}
-                    />
-                    <span className="tick" style={{ fontSize: 9 }}>
-                      {WEEK[new Date(e.date + "T12:00:00").getDay()]}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* History */}
-        {(entries ?? []).length === 0 ? (
+        {empty ? (
           <div className="card text-center py-12">
-            <p style={{ color: "var(--mute)", fontSize: 14 }}>Sin registros de salud</p>
-            <p className="tick mt-1 mb-4">Registra tu sueño, peso y energía diariamente</p>
-            <LogHealth label="Primer registro" />
+            <p style={{ color: "var(--mute)", fontSize: 14 }}>Sin datos de salud todavía</p>
+            <p className="tick mt-1 mb-4">Registra tu peso y tu día — sueño, ánimo, energía y actividad</p>
+            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+              <LogWeight variant="primary" label="Registrar peso" />
+              <LogHealth label="Registrar día" />
+            </div>
           </div>
         ) : (
-          <div className="card">
-            <p className="eyebrow mb-4">Historial</p>
-            <div className="flex flex-col gap-1">
-              {(entries ?? []).map((e) => (
-                <div key={e.id} className="tx-row">
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 13, color: "var(--bone-dim)" }}>{e.date}</p>
+          <>
+            {/* Peso actual + KPIs */}
+            <div className="sl-top">
+              <div className="card sl-weight-card">
+                <p className="eyebrow mb-2">Peso actual</p>
+                {w ? (
+                  <>
+                    <div className="sl-weight-main">
+                      <span className="sl-weight-val">{w.current}</span>
+                      <span className="sl-weight-unit">kg</span>
+                      {deltaTag(w.delta, "kg", false)}
+                    </div>
+                    <p className="tick mb-3">
+                      {new Date(w.currentDate + "T12:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "long" })}
+                      {w.count > 1 && w.perWeek !== 0 ? ` · ${w.perWeek > 0 ? "+" : ""}${w.perWeek} kg/sem` : ""}
+                    </p>
+                    <div className="sl-weight-sub">
+                      <div><span className="sl-sub-val">{w.bodyFat ?? "—"}{w.bodyFat ? "%" : ""}</span><span className="tick">grasa</span></div>
+                      <div><span className="sl-sub-val">{w.muscle ?? "—"}{w.muscle ? "kg" : ""}</span><span className="tick">músculo</span></div>
+                      <div><span className="sl-sub-val">{w.min}–{w.max}</span><span className="tick">rango</span></div>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ padding: "12px 0" }}>
+                    <p style={{ color: "var(--mute)", fontSize: 13 }} className="mb-3">Aún no registras tu peso.</p>
+                    <LogWeight variant="primary" label="Registrar peso" />
                   </div>
-                  {e.sleep_hours && (
-                    <span className="tag" style={{ fontSize: 10 }}>😴 {e.sleep_hours}h</span>
-                  )}
-                  {e.weight_kg && (
-                    <span className="tag" style={{ fontSize: 10 }}>⚖️ {e.weight_kg}kg</span>
-                  )}
-                  {e.mood && (
-                    <span className="tag" style={{ fontSize: 10 }}>🧠 mood {e.mood}/5</span>
-                  )}
-                  {e.workout_minutes && (
-                    <span className="tag" style={{ fontSize: 10, borderColor: "var(--green)", color: "var(--green)" }}>
-                      💪 {e.workout_minutes}min
-                    </span>
-                  )}
-                  {e.workout_type && (
-                    <span className="tick" style={{ fontSize: 11 }}>{e.workout_type}</span>
-                  )}
+                )}
+              </div>
+
+              <div className="sl-kpis">
+                <div className="card sl-kpi">
+                  <p className="sl-kpi-val" style={{ color: "var(--violet)" }}>{avgSleep ?? "—"}<span>h</span></p>
+                  <p className="metric-label">Sueño (7d) {deltaTag(sleepCmp.delta, "h")}</p>
                 </div>
-              ))}
+                <div className="card sl-kpi">
+                  <p className="sl-kpi-val" style={{ color: "var(--gold)" }}>{avgMood ?? "—"}<span>/5</span></p>
+                  <p className="metric-label">Ánimo (7d) {deltaTag(moodCmp.delta, "")}</p>
+                </div>
+                <div className="card sl-kpi">
+                  <p className="sl-kpi-val" style={{ color: "var(--green)" }}>{avgEnergy ?? "—"}<span>/5</span></p>
+                  <p className="metric-label">Energía (7d) {deltaTag(energyCmp.delta, "")}</p>
+                </div>
+                <div className="card sl-kpi">
+                  <p className="sl-kpi-val" style={{ color: "var(--blue)" }}>{avgSteps ? Math.round(avgSteps).toLocaleString("es-MX") : "—"}</p>
+                  <p className="metric-label">Pasos (7d) {deltaTag(stepsCmp.delta, "")}</p>
+                </div>
+              </div>
             </div>
-          </div>
+
+            <Analysis initial={cache?.content ?? null} generatedAt={cache?.generated_at ?? null} />
+
+            <SaludCharts weight={weightPoints} days={days} />
+
+            {/* Patrones / correlaciones */}
+            <div className="card sl-patterns mb-6">
+              <p className="eyebrow mb-3">Tus patrones</p>
+              <div className="sl-pattern-grid">
+                <div>
+                  <p className="sl-pattern-lbl">Sueño → ánimo</p>
+                  <p className="sl-pattern-val">{corrLabel(corrSleepMood)}</p>
+                </div>
+                <div>
+                  <p className="sl-pattern-lbl">Sueño → energía</p>
+                  <p className="sl-pattern-val">{corrLabel(corrSleepEnergy)}</p>
+                </div>
+                <div>
+                  <p className="sl-pattern-lbl">Deuda de sueño (7d)</p>
+                  <p className="sl-pattern-val" style={{ color: debt > 3 ? "var(--red)" : debt > 0 ? "var(--gold)" : "var(--green)" }}>
+                    {debt > 0 ? `−${debt}h vs objetivo` : debt < 0 ? `+${Math.abs(debt)}h sobre objetivo` : "al día"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Heatmap de sueño 30d */}
+            <div className="card mb-6">
+              <p className="eyebrow mb-3">Sueño — últimos 30 días</p>
+              <div className="sl-heat">
+                {heatDays.map((d) => (
+                  <div
+                    key={d.date}
+                    className="sl-heat-cell"
+                    style={{ background: d.sleep != null ? sleepColor(d.sleep) : "var(--bg-raised)", opacity: d.sleep != null ? 1 : 0.4 }}
+                    title={d.sleep != null ? `${d.sleep}h · ${d.date}` : `sin dato · ${d.date}`}
+                  />
+                ))}
+              </div>
+              <p className="tick mt-2">Objetivo: {SLEEP_TARGET}h por noche</p>
+            </div>
+
+            {/* Historial */}
+            {entries.length > 0 && (
+              <div className="card">
+                <p className="eyebrow mb-4">Historial</p>
+                <div className="flex flex-col gap-1">
+                  {entries.map((e) => (
+                    <div key={e.id} className="tx-row">
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: 13, color: "var(--bone-dim)" }}>
+                          {new Date(e.date + "T12:00:00").toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" })}
+                        </p>
+                      </div>
+                      {e.sleep_hours != null && <span className="tag" style={{ fontSize: 10, color: sleepColor(e.sleep_hours), borderColor: sleepColor(e.sleep_hours) }}>😴 {e.sleep_hours}h</span>}
+                      {e.mood != null && <span className="tag" style={{ fontSize: 10 }}>🙂 {e.mood}/5</span>}
+                      {e.energy != null && <span className="tag" style={{ fontSize: 10 }}>⚡ {e.energy}/5</span>}
+                      {e.steps != null && <span className="tag" style={{ fontSize: 10 }}>👟 {e.steps.toLocaleString("es-MX")}</span>}
+                      {e.workout_minutes != null && <span className="tag" style={{ fontSize: 10, borderColor: "var(--green)", color: "var(--green)" }}>💪 {e.workout_minutes}min</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -3439,3 +3439,235 @@ body {
   transition: border-color 0.12s, color 0.12s;
 }
 .rd-icon-btn:hover { border-color: var(--line-2); color: var(--bone-dim); }
+
+/* ─── Metas (07) — progreso visual, hitos, motor de hábitos ──────── */
+.mt-goal { display: flex; flex-direction: column; gap: 14px; }
+.mt-goal-head { display: flex; align-items: flex-start; gap: 12px; }
+.mt-goal-icon {
+  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.mt-gear {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 7px;
+  background: transparent; border: 1px solid var(--line); color: var(--mute-2);
+  cursor: pointer; transition: border-color 0.12s, color 0.12s; flex-shrink: 0;
+}
+.mt-gear:hover { border-color: var(--line-2); color: var(--bone); }
+
+/* Barra de progreso con marcador de ritmo esperado */
+.mt-prog { display: flex; flex-direction: column; gap: 7px; }
+.mt-prog-head { display: flex; align-items: center; gap: 10px; }
+.mt-pct { font-family: var(--f-mono); font-size: 15px; font-weight: 500; }
+.mt-pace {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--f-mono); font-size: 11px;
+}
+.mt-update { cursor: pointer; color: var(--gold); background: none; border: none; }
+.mt-edit-row { display: flex; gap: 8px; align-items: center; }
+.mt-track {
+  position: relative; width: 100%; height: 12px;
+  background: var(--bg-card); border-radius: 7px; overflow: hidden;
+}
+.mt-track-fill { height: 100%; border-radius: 7px; transition: width 0.6s var(--ease); }
+.mt-track-marker {
+  position: absolute; top: -2px; bottom: -2px; width: 2px;
+  background: var(--bone-dim); opacity: 0.55; border-radius: 2px;
+  transform: translateX(-1px);
+}
+
+/* Secciones internas (hitos, motor) */
+.mt-section { display: flex; flex-direction: column; gap: 8px; }
+.mt-section-label {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--f-mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--mute);
+}
+
+/* Hitos — línea de tiempo horizontal */
+.mt-hitos { display: flex; flex-wrap: wrap; gap: 6px; }
+.mt-hito {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 10px 5px 7px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--glass-bg);
+  cursor: pointer; transition: border-color 0.12s, background 0.12s;
+}
+.mt-hito:hover { border-color: var(--line-2); }
+.mt-hito-dot {
+  width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+  border: 1.5px solid var(--mute-2); display: flex; align-items: center; justify-content: center;
+  color: var(--bg-deep);
+}
+.mt-hito-title { font-size: 12.5px; color: var(--bone-dim); }
+.mt-hito-date { font-family: var(--f-mono); font-size: 10.5px; color: var(--mute); }
+.mt-hito.done { border-color: rgba(127,169,140,0.4); background: rgba(127,169,140,0.1); }
+.mt-hito.done .mt-hito-dot { background: var(--green); border-color: var(--green); }
+.mt-hito.done .mt-hito-title { color: var(--green); text-decoration: line-through; opacity: 0.8; }
+.mt-hito.overdue { border-color: rgba(217,107,88,0.45); }
+.mt-hito.overdue .mt-hito-dot { border-color: var(--red); }
+.mt-hito.overdue .mt-hito-date { color: var(--red); }
+.mt-hito.soon .mt-hito-dot { border-color: var(--gold); }
+.mt-hito.soon .mt-hito-date { color: var(--gold); }
+
+/* Motor — hábitos que sostienen la meta */
+.mt-engine { display: flex; flex-direction: column; gap: 7px; }
+.mt-engine-row { display: flex; align-items: center; gap: 10px; }
+.mt-engine-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.mt-engine-name { font-size: 13px; color: var(--bone-dim); width: 150px; flex-shrink: 0; }
+.mt-engine-track { flex: 1; height: 7px; background: var(--bg-card); border-radius: 4px; overflow: hidden; }
+.mt-engine-fill { height: 100%; border-radius: 4px; transition: width 0.5s var(--ease); }
+.mt-engine-val { font-family: var(--f-mono); font-size: 12px; width: 40px; text-align: right; flex-shrink: 0; }
+
+/* Modal de gestión */
+.mt-mng-section {
+  display: flex; flex-direction: column; gap: 8px;
+  padding-top: 14px; margin-top: 6px; border-top: 1px solid var(--line);
+}
+.mt-mng-head { display: flex; align-items: center; justify-content: space-between; }
+.mt-mng-ms { display: flex; align-items: center; gap: 8px; }
+.mt-hab-pick { display: flex; flex-wrap: wrap; gap: 7px; }
+.mt-hab-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 11px; border-radius: 8px; font-size: 12.5px;
+  border: 1px solid var(--line); background: var(--glass-bg); color: var(--bone-dim);
+  cursor: pointer; transition: border-color 0.12s, background 0.12s;
+}
+.mt-hab-chip:hover { border-color: var(--line-2); }
+.mt-hab-chip.on { color: var(--bone); }
+
+/* ── Tiempo (módulo 13) ──────────────────────────────────────────────────── */
+.tm-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+}
+.tm-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 900px) {
+  .tm-kpis { grid-template-columns: repeat(2, 1fr); }
+  .tm-grid-2 { grid-template-columns: 1fr; }
+}
+
+.tm-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+/* Heatmap de actividad */
+.tm-hm-scroll { overflow-x: auto; padding-bottom: 4px; }
+.tm-hm-grid { display: flex; gap: 4px; min-width: max-content; }
+.tm-hm-col { display: flex; flex-direction: column; gap: 4px; position: relative; padding-top: 14px; }
+.tm-hm-month {
+  position: absolute; top: 0; left: 0;
+  font-family: var(--f-mono); font-size: 9px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--mute-2); white-space: nowrap;
+}
+.tm-hm-cell {
+  width: 13px; height: 13px; border-radius: 3px;
+  background: rgba(245, 242, 234, 0.05);
+  border: 1px solid var(--line);
+  transition: transform 0.12s var(--ease);
+}
+.tm-hm-cell:hover { transform: scale(1.18); }
+.tm-hm-cell[data-lvl="-1"] { opacity: 0.3; }
+.tm-hm-cell[data-lvl="0"] { background: rgba(245, 242, 234, 0.05); }
+.tm-hm-cell[data-lvl="1"] { background: rgba(201, 163, 95, 0.28); border-color: transparent; }
+.tm-hm-cell[data-lvl="2"] { background: rgba(201, 163, 95, 0.5); border-color: transparent; }
+.tm-hm-cell[data-lvl="3"] { background: rgba(201, 163, 95, 0.72); border-color: transparent; }
+.tm-hm-cell[data-lvl="4"] { background: var(--gold); border-color: transparent; }
+.tm-hm-cell.today { box-shadow: 0 0 0 1.5px var(--bone); }
+.tm-hm-key { display: flex; align-items: center; gap: 4px; }
+.tm-hm-key .tm-hm-cell { cursor: default; }
+.tm-hm-key:hover .tm-hm-cell { transform: none; }
+
+/* Barras de horas por semana */
+.tm-week-bars { display: flex; align-items: flex-end; gap: 8px; height: 160px; }
+.tm-week-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
+.tm-week-val { font-family: var(--f-mono); font-size: 9px; color: var(--mute-2); margin-bottom: 4px; min-height: 12px; }
+.tm-week-track { width: 100%; flex: 1; display: flex; align-items: flex-end; }
+.tm-week-fill {
+  width: 100%; border-radius: 4px 4px 0 0;
+  background: var(--bone-dim); opacity: 0.55; min-height: 2px;
+  transition: height 0.4s var(--ease), opacity 0.15s;
+}
+.tm-week-fill.current { background: var(--gold); opacity: 1; }
+.tm-week-col:hover .tm-week-fill { opacity: 0.85; }
+.tm-week-col:hover .tm-week-fill.current { opacity: 1; }
+.tm-week-label { font-family: var(--f-mono); font-size: 9px; color: var(--mute-2); margin-top: 6px; }
+
+/* Barras por cliente */
+.tm-client-bars { display: flex; flex-direction: column; gap: 11px; }
+.tm-client-row { display: flex; align-items: center; gap: 12px; }
+.tm-client-label { width: 110px; flex-shrink: 0; font-size: 13px; color: var(--bone-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-client-track { flex: 1; height: 10px; background: var(--bg-card); border-radius: 6px; overflow: hidden; }
+.tm-client-fill { height: 100%; border-radius: 6px; transition: width 0.4s var(--ease); }
+.tm-client-val { width: 44px; text-align: right; flex-shrink: 0; font-family: var(--f-mono); font-size: 12px; color: var(--bone); }
+
+/* Ritmo del día */
+.tm-rhythm { display: flex; align-items: flex-end; gap: 2px; height: 120px; }
+.tm-rhythm-bar {
+  flex: 1; border-radius: 2px 2px 0 0;
+  background: var(--bone-dim); opacity: 0.4; min-height: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+.tm-rhythm-bar:hover { opacity: 0.7; }
+.tm-rhythm-bar.peak { background: var(--gold); opacity: 1; }
+.tm-rhythm-axis { display: flex; justify-content: space-between; margin-top: 6px; }
+.tm-rhythm-axis span { font-family: var(--f-mono); font-size: 9px; color: var(--mute-2); }
+
+/* ── Salud (módulo 10) ─────────────────────────────────────────────────── */
+.sl-top {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+@media (max-width: 860px) { .sl-top { grid-template-columns: 1fr; } }
+
+.sl-weight-card { display: flex; flex-direction: column; }
+.sl-weight-main { display: flex; align-items: baseline; gap: 6px; margin-bottom: 2px; }
+.sl-weight-val { font-family: var(--f-mono); font-size: 44px; line-height: 1; color: var(--bone); }
+.sl-weight-unit { font-family: var(--f-mono); font-size: 16px; color: var(--mute); }
+.sl-delta { font-family: var(--f-mono); font-size: 12px; margin-left: auto; }
+.sl-weight-sub { display: flex; gap: 14px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); }
+.sl-weight-sub > div { display: flex; flex-direction: column; gap: 1px; }
+.sl-sub-val { font-family: var(--f-mono); font-size: 15px; color: var(--bone-dim); }
+
+.sl-kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+@media (min-width: 540px) { .sl-kpis { grid-template-columns: repeat(4, 1fr); } }
+.sl-kpi { text-align: center; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+.sl-kpi-val { font-family: var(--f-mono); font-size: 28px; line-height: 1; }
+.sl-kpi-val span { font-size: 14px; color: var(--mute); }
+.sl-kpi .sl-delta { margin-left: 4px; }
+
+.sl-charts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+@media (max-width: 980px) { .sl-charts { grid-template-columns: 1fr; } }
+.sl-chart-card { display: flex; flex-direction: column; }
+.sl-svg { width: 100%; height: 150px; overflow: visible; }
+.sl-svg-tip { font-family: var(--f-mono); font-size: 9px; fill: var(--bone); }
+.sl-axis { display: flex; justify-content: space-between; margin-top: 6px; }
+.sl-axis span { font-family: var(--f-mono); font-size: 9px; color: var(--mute-2); }
+.sl-empty { color: var(--mute); font-size: 13px; padding: 28px 0; text-align: center; }
+
+.sl-bars { display: flex; align-items: flex-end; gap: 4px; height: 130px; }
+.sl-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; height: 100%; justify-content: flex-end; }
+.sl-bar { width: 100%; border-radius: 3px 3px 0 0; min-height: 3px; transition: height 0.4s var(--ease); }
+.sl-bar-lbl { font-family: var(--f-mono); font-size: 9px; color: var(--mute-2); }
+.sl-legend { display: flex; gap: 12px; margin-top: 10px; }
+.sl-legend span { font-family: var(--f-mono); font-size: 9px; color: var(--mute); display: flex; align-items: center; gap: 4px; }
+.sl-legend i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+.sl-patterns .sl-pattern-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+@media (max-width: 720px) { .sl-patterns .sl-pattern-grid { grid-template-columns: 1fr; } }
+.sl-pattern-lbl { font-family: var(--f-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mute); margin-bottom: 4px; }
+.sl-pattern-val { font-size: 14px; color: var(--bone-dim); }
+
+.sl-heat { display: grid; grid-template-columns: repeat(15, 1fr); gap: 5px; }
+@media (max-width: 540px) { .sl-heat { grid-template-columns: repeat(10, 1fr); } }
+.sl-heat-cell { aspect-ratio: 1; border-radius: 3px; }
+
+.sl-rating { display: flex; gap: 6px; }
+.sl-rating-dot {
+  width: 34px; height: 34px; border-radius: 8px;
+  border: 1px solid var(--line-2); background: var(--bg-raised);
+  color: var(--mute); font-family: var(--f-mono); font-size: 13px;
+  cursor: pointer; transition: all 0.15s var(--ease);
+}
+.sl-rating-dot:hover { border-color: var(--gold); color: var(--bone); }
+.sl-rating-dot.on { background: var(--gold); border-color: var(--gold); color: var(--bg-deep); }

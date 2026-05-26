@@ -14,6 +14,9 @@ import {
 } from "@/lib/academia/grades";
 import { normalizeBucket, bucketLabel, entryBucket, SPENDING_BUCKETS } from "@/lib/finance/categories";
 import { buildUpcomingPayments } from "@/lib/finance/payments";
+import { avg, weightStats, sleepDebt, compareWindows, correlate, corrLabel } from "@/lib/salud/health";
+import { goalPct, goalPace, milestoneState } from "@/lib/metas/progress";
+import type { HealthEntry, WeightLog, Goal, GoalMilestone } from "@/lib/supabase/types";
 
 type DB = SupabaseClient<Database>;
 
@@ -209,6 +212,129 @@ export const SHADOW_TOOLS: Anthropic.Tool[] = [
         cantidad: { type: "number", description: "Cuántas faltas, default 1" },
       },
       required: ["materia"],
+    },
+  },
+  {
+    name: "consultar_salud",
+    description:
+      "Consulta el estado de salud de André: peso actual y tendencia, promedios de sueño/ánimo/energía/pasos de los últimos 7 días con su cambio vs. la semana previa, deuda de sueño y correlaciones (cómo el sueño afecta su ánimo y energía). Úsalo antes de analizar o aconsejar sobre salud, sueño, peso o energía.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "registrar_salud",
+    description:
+      "Registra el día de salud de André (sueño, ánimo, energía, pasos, agua, ejercicio). Úsalo cuando diga cosas como 'dormí 7 horas, ando con buena energía' o 'caminé 9 mil pasos'. NO uses esto para el peso — para el peso usa 'registrar_peso'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        fecha: { type: "string", description: "YYYY-MM-DD, opcional, default hoy" },
+        horas_sueno: { type: "number", description: "Horas dormidas" },
+        calidad_sueno: { type: "number", description: "1-5" },
+        animo: { type: "number", description: "1-5" },
+        energia: { type: "number", description: "1-5" },
+        pasos: { type: "number" },
+        fc_reposo: { type: "number", description: "Frecuencia cardiaca en reposo (lpm)" },
+        agua_l: { type: "number", description: "Litros de agua" },
+        ejercicio_min: { type: "number" },
+        tipo_ejercicio: { type: "string" },
+        notas: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "registrar_peso",
+    description:
+      "Registra el peso de André (y opcionalmente % de grasa y kg de músculo). André no se pesa a diario, así que esto crea/actualiza la medición de ese día y el último registro queda como su peso actual.",
+    input_schema: {
+      type: "object",
+      properties: {
+        peso_kg: { type: "number" },
+        grasa_pct: { type: "number", description: "% de grasa corporal, opcional" },
+        musculo_kg: { type: "number", description: "kg de masa muscular, opcional" },
+        fecha: { type: "string", description: "YYYY-MM-DD, opcional, default hoy" },
+        notas: { type: "string" },
+      },
+      required: ["peso_kg"],
+    },
+  },
+  {
+    name: "consultar_metas",
+    description:
+      "Consulta las metas activas de André: progreso de cada una, si va a tiempo/adelantado/atrasado según su fecha objetivo, hitos pendientes con fecha, y qué hábitos la sostienen con su adherencia (30d). Úsalo antes de analizar, aconsejar o actualizar metas.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "crear_meta",
+    description:
+      "Crea una meta para André. Elige el tipo de progreso: 'percentage' (avance 0-100%), 'numeric' (medible, requiere valor objetivo y unidad, ej. 12 libros) o 'milestones' (el progreso lo definen los hitos). Agrega hitos con fecha si los menciona.",
+    input_schema: {
+      type: "object",
+      properties: {
+        titulo: { type: "string" },
+        categoria: { type: "string", enum: ["career", "finance", "health", "learning", "relationships", "experience", "creative", "other"] },
+        descripcion: { type: "string", description: "Por qué importa, opcional" },
+        tipo_progreso: { type: "string", enum: ["percentage", "numeric", "milestones"], description: "default percentage" },
+        valor_objetivo: { type: "number", description: "Solo para tipo numeric" },
+        unidad: { type: "string", description: "Solo para tipo numeric, ej. libros, km" },
+        fecha_objetivo: { type: "string", description: "YYYY-MM-DD, opcional" },
+        hitos: {
+          type: "array",
+          description: "Hitos iniciales, opcional",
+          items: { type: "object", properties: { titulo: { type: "string" }, fecha: { type: "string", description: "YYYY-MM-DD opcional" } }, required: ["titulo"] },
+        },
+      },
+      required: ["titulo"],
+    },
+  },
+  {
+    name: "actualizar_progreso_meta",
+    description:
+      "Actualiza el progreso de una meta de André (busca por título). Para metas de porcentaje pasa el % (0-100); para numéricas pasa el valor actual (ej. 5 libros leídos). Si alcanza el objetivo se marca completada. No usar en metas por hitos (usa completar_hito).",
+    input_schema: {
+      type: "object",
+      properties: {
+        meta: { type: "string", description: "Título o parte del título de la meta" },
+        valor: { type: "number", description: "% (0-100) o valor numérico actual" },
+      },
+      required: ["meta", "valor"],
+    },
+  },
+  {
+    name: "agregar_hito",
+    description: "Agrega un hito (paso) a una meta de André, opcionalmente con fecha límite. Busca la meta por título.",
+    input_schema: {
+      type: "object",
+      properties: {
+        meta: { type: "string", description: "Título o parte del título de la meta" },
+        hito: { type: "string", description: "El hito a agregar" },
+        fecha: { type: "string", description: "YYYY-MM-DD fecha límite, opcional" },
+      },
+      required: ["meta", "hito"],
+    },
+  },
+  {
+    name: "completar_hito",
+    description: "Marca un hito de una meta como completado. Busca la meta por título y el hito por coincidencia de texto.",
+    input_schema: {
+      type: "object",
+      properties: {
+        meta: { type: "string", description: "Título o parte del título de la meta" },
+        hito: { type: "string", description: "Texto o parte del texto del hito" },
+      },
+      required: ["meta", "hito"],
+    },
+  },
+  {
+    name: "vincular_habito_meta",
+    description:
+      "Vincula un hábito a una meta para registrar qué hábito la sostiene (el 'motor' de la meta). Busca ambos por nombre/título.",
+    input_schema: {
+      type: "object",
+      properties: {
+        meta: { type: "string", description: "Título o parte del título de la meta" },
+        habito: { type: "string", description: "Nombre o parte del nombre del hábito" },
+      },
+      required: ["meta", "habito"],
     },
   },
   {
@@ -545,6 +671,161 @@ export async function executeTool(
         return { ok: true, summary: `Falta registrada en ${course.name}${tail}.` };
       }
 
+      case "consultar_salud":
+        return { ok: true, summary: await buildHealthDetail(supabase, today) };
+
+      case "registrar_salud": {
+        const fecha = typeof input.fecha === "string" && input.fecha ? input.fecha : today;
+        const numOr = (k: string) => (typeof input[k] === "number" ? (input[k] as number) : null);
+        const intOr = (k: string) => {
+          const n = numOr(k);
+          return n == null ? null : Math.round(n);
+        };
+        const fields = {
+          sleep_hours: numOr("horas_sueno"),
+          sleep_quality: intOr("calidad_sueno"),
+          mood: intOr("animo"),
+          energy: intOr("energia"),
+          steps: intOr("pasos"),
+          resting_hr: intOr("fc_reposo"),
+          water_l: numOr("agua_l"),
+          workout_minutes: intOr("ejercicio_min"),
+          workout_type: typeof input.tipo_ejercicio === "string" && input.tipo_ejercicio ? input.tipo_ejercicio : null,
+          notes: typeof input.notas === "string" && input.notas ? input.notas : null,
+        };
+        if (Object.values(fields).every((v) => v == null)) {
+          return { ok: false, summary: "No me diste ningún dato de salud para registrar." };
+        }
+        const { error } = await supabase.from("health_entries").upsert(
+          { date: fecha, source: "shadow", ...fields } as never,
+          { onConflict: "date" }
+        );
+        if (error) throw error;
+        const parts: string[] = [];
+        if (fields.sleep_hours != null) parts.push(`${fields.sleep_hours}h sueño`);
+        if (fields.mood != null) parts.push(`ánimo ${fields.mood}/5`);
+        if (fields.energy != null) parts.push(`energía ${fields.energy}/5`);
+        if (fields.steps != null) parts.push(`${fields.steps} pasos`);
+        if (fields.workout_minutes != null) parts.push(`${fields.workout_minutes}min ejercicio`);
+        return { ok: true, summary: `Día registrado (${fecha}): ${parts.join(", ") || "datos guardados"}.` };
+      }
+
+      case "registrar_peso": {
+        const peso = Number(input.peso_kg);
+        if (!isFinite(peso) || peso <= 0) return { ok: false, summary: "Falta un peso válido en kg." };
+        const fecha = typeof input.fecha === "string" && input.fecha ? input.fecha : today;
+        const { error } = await supabase.from("weight_logs").upsert(
+          {
+            date: fecha,
+            weight_kg: peso,
+            body_fat_pct: typeof input.grasa_pct === "number" ? input.grasa_pct : null,
+            muscle_kg: typeof input.musculo_kg === "number" ? input.musculo_kg : null,
+            notes: typeof input.notas === "string" && input.notas ? input.notas : null,
+            source: "shadow",
+          },
+          { onConflict: "date" }
+        );
+        if (error) throw error;
+        const extra = typeof input.grasa_pct === "number" ? ` · ${input.grasa_pct}% grasa` : "";
+        return { ok: true, summary: `Peso registrado: ${peso}kg (${fecha})${extra}.` };
+      }
+
+      case "consultar_metas":
+        return { ok: true, summary: await buildMetas(supabase, today) };
+
+      case "crear_meta": {
+        const titulo = String(input.titulo ?? "").trim();
+        if (!titulo) return { ok: false, summary: "Falta el título de la meta." };
+        const categoria = typeof input.categoria === "string" && input.categoria ? input.categoria : "other";
+        const tipo = ["percentage", "numeric", "milestones"].includes(String(input.tipo_progreso)) ? String(input.tipo_progreso) : "percentage";
+        const valorObj = tipo === "numeric" && typeof input.valor_objetivo === "number" ? input.valor_objetivo : null;
+        const unidad = tipo === "numeric" && typeof input.unidad === "string" && input.unidad ? input.unidad : null;
+        const fechaObj = typeof input.fecha_objetivo === "string" && input.fecha_objetivo ? input.fecha_objetivo : null;
+        const { data: goal, error } = await supabase.from("goals").insert({
+          title: titulo, category: categoria, description: typeof input.descripcion === "string" ? input.descripcion : null,
+          target_date: fechaObj, started_at: today, progress_type: tipo, current_value: 0,
+          target_value: valorObj, unit: unidad, image_url: null, pinned: false, status: "active",
+          completed_at: null, sort_order: 0,
+        }).select("id").single();
+        if (error) throw error;
+        const goalId = (goal as { id: string } | null)?.id;
+        const hitos = Array.isArray(input.hitos) ? input.hitos : [];
+        if (goalId && hitos.length) {
+          const rows = hitos
+            .map((h, i) => {
+              const t = typeof (h as Record<string, unknown>)?.titulo === "string" ? String((h as Record<string, unknown>).titulo).trim() : "";
+              if (!t) return null;
+              const f = typeof (h as Record<string, unknown>)?.fecha === "string" ? String((h as Record<string, unknown>).fecha) : null;
+              return { goal_id: goalId, title: t, due_date: f || null, done: false, done_at: null, sort_order: i };
+            })
+            .filter((r): r is NonNullable<typeof r> => !!r);
+          if (rows.length) await supabase.from("goal_milestones").insert(rows);
+        }
+        const hitoTag = hitos.length ? ` · ${hitos.length} hito(s)` : "";
+        return { ok: true, summary: `Meta creada: "${titulo}"${fechaObj ? ` (objetivo ${fechaObj})` : ""}${hitoTag}.` };
+      }
+
+      case "actualizar_progreso_meta": {
+        const metaq = String(input.meta ?? "").trim();
+        const valor = Number(input.valor);
+        if (!isFinite(valor)) return { ok: false, summary: "Falta un valor numérico válido." };
+        const { data } = await supabase.from("goals").select("id, title, progress_type, target_value").neq("status", "archived").ilike("title", `%${metaq}%`).limit(1);
+        const g = data?.[0];
+        if (!g) return { ok: false, summary: `No encontré una meta que coincida con "${metaq}".` };
+        if (g.progress_type === "milestones") return { ok: false, summary: `"${g.title}" avanza por hitos. Usa completar_hito.` };
+        const reached = (g.progress_type === "numeric" && g.target_value != null && valor >= g.target_value) || (g.progress_type !== "numeric" && valor >= 100);
+        const { error } = await supabase.from("goals").update({
+          current_value: valor, ...(reached ? { status: "completed", completed_at: new Date().toISOString() } : {}),
+        }).eq("id", g.id);
+        if (error) throw error;
+        const shown = g.progress_type === "numeric" ? `${valor}${g.target_value ? `/${g.target_value}` : ""}` : `${valor}%`;
+        return { ok: true, summary: `Progreso de "${g.title}": ${shown}${reached ? " · ✓ completada" : ""}.` };
+      }
+
+      case "agregar_hito": {
+        const metaq = String(input.meta ?? "").trim();
+        const hito = String(input.hito ?? "").trim();
+        if (!hito) return { ok: false, summary: "Falta el texto del hito." };
+        const { data } = await supabase.from("goals").select("id, title").neq("status", "archived").ilike("title", `%${metaq}%`).limit(1);
+        const g = data?.[0];
+        if (!g) return { ok: false, summary: `No encontré una meta que coincida con "${metaq}".` };
+        const { data: maxRow } = await supabase.from("goal_milestones").select("sort_order").eq("goal_id", g.id).order("sort_order", { ascending: false }).limit(1);
+        const sort_order = (maxRow?.[0]?.sort_order ?? -1) + 1;
+        const fecha = typeof input.fecha === "string" && input.fecha ? input.fecha : null;
+        const { error } = await supabase.from("goal_milestones").insert({ goal_id: g.id, title: hito, due_date: fecha, done: false, done_at: null, sort_order });
+        if (error) throw error;
+        return { ok: true, summary: `Hito agregado a "${g.title}": "${hito}"${fecha ? ` (${fecha})` : ""}.` };
+      }
+
+      case "completar_hito": {
+        const metaq = String(input.meta ?? "").trim();
+        const hitoq = String(input.hito ?? "").trim();
+        const { data: gs } = await supabase.from("goals").select("id, title").neq("status", "archived").ilike("title", `%${metaq}%`).limit(1);
+        const g = gs?.[0];
+        if (!g) return { ok: false, summary: `No encontré una meta que coincida con "${metaq}".` };
+        const { data: hs } = await supabase.from("goal_milestones").select("id, title, done").eq("goal_id", g.id).ilike("title", `%${hitoq}%`).limit(1);
+        const h = hs?.[0];
+        if (!h) return { ok: false, summary: `No encontré un hito en "${g.title}" que coincida con "${hitoq}".` };
+        const { error } = await supabase.from("goal_milestones").update({ done: true, done_at: new Date().toISOString() }).eq("id", h.id);
+        if (error) throw error;
+        return { ok: true, summary: `Hito completado en "${g.title}": "${h.title}".` };
+      }
+
+      case "vincular_habito_meta": {
+        const metaq = String(input.meta ?? "").trim();
+        const habq = String(input.habito ?? "").trim();
+        const [{ data: gs }, { data: hs }] = await Promise.all([
+          supabase.from("goals").select("id, title").neq("status", "archived").ilike("title", `%${metaq}%`).limit(1),
+          supabase.from("habits").select("id, name").eq("active", true).ilike("name", `%${habq}%`).limit(1),
+        ]);
+        const g = gs?.[0]; const h = hs?.[0];
+        if (!g) return { ok: false, summary: `No encontré una meta que coincida con "${metaq}".` };
+        if (!h) return { ok: false, summary: `No encontré un hábito que coincida con "${habq}".` };
+        const { error } = await supabase.from("goal_habits").upsert({ goal_id: g.id, habit_id: h.id }, { onConflict: "goal_id,habit_id" });
+        if (error) throw error;
+        return { ok: true, summary: `Hábito "${h.name}" ahora sostiene la meta "${g.title}".` };
+      }
+
       case "crear_evento": {
         const titulo = String(input.titulo ?? "").trim();
         const inicio = String(input.inicio ?? "");
@@ -743,7 +1024,7 @@ async function deleteEvent(id: string): Promise<boolean> {
 async function buildStatus(supabase: DB, today: string): Promise<string> {
   const monthStart = today.slice(0, 7) + "-01";
   const weekAgo = new Date(Date.now() - 6 * 86400000).toISOString().split("T")[0];
-  const [{ data: prios }, { data: habits }, { data: comps }, { data: entries }, { data: banks }, { data: gymWeek }, { data: lastGym }, { data: exams }, { data: cards }, { data: recurring }] = await Promise.all([
+  const [{ data: prios }, { data: habits }, { data: comps }, { data: entries }, { data: banks }, { data: gymWeek }, { data: lastGym }, { data: exams }, { data: cards }, { data: recurring }, { data: sleepWeek }, { data: lastWeight }, { data: activeGoals }, { data: nextMs }] = await Promise.all([
     supabase.from("priorities").select("text, completed").eq("date", today),
     supabase.from("habits").select("id, name").eq("active", true),
     supabase.from("habit_completions").select("habit_id").eq("date", today),
@@ -754,6 +1035,10 @@ async function buildStatus(supabase: DB, today: string): Promise<string> {
     supabase.from("grade_components").select("name, date, course_id").eq("kind", "examen").neq("status", "done").gte("date", today).order("date").limit(3),
     supabase.from("credit_cards").select("*").eq("active", true),
     supabase.from("recurring_charges").select("*").eq("active", true),
+    supabase.from("health_entries").select("sleep_hours, energy").gte("date", weekAgo).lte("date", today),
+    supabase.from("weight_logs").select("weight_kg, date").order("date", { ascending: false }).limit(1),
+    supabase.from("goals").select("id, title, target_date").eq("status", "active"),
+    supabase.from("goal_milestones").select("title, due_date").eq("done", false).not("due_date", "is", null).gte("due_date", today).order("due_date").limit(1),
   ]);
 
   const done = new Set((comps ?? []).map((c) => c.habit_id));
@@ -803,13 +1088,25 @@ async function buildStatus(supabase: DB, today: string): Promise<string> {
     ? `Próximo pago: ${nextPay.name}${nextPay.amount ? ` ${formatCurrency(nextPay.amount)}` : ""} en ${nextPay.daysUntil} día(s) (${nextPay.dueDate}).`
     : "Sin pagos próximos en los siguientes 10 días.";
 
+  const sleepVals = (sleepWeek ?? []).map((e) => e.sleep_hours).filter((x): x is number => typeof x === "number");
+  const avgSleep = sleepVals.length ? Math.round((sleepVals.reduce((a, b) => a + b, 0) / sleepVals.length) * 10) / 10 : null;
+  const lw = lastWeight?.[0];
+  const healthLine = `Salud: ${avgSleep != null ? `sueño prom 7d ${avgSleep}h` : "sin sueño registrado"}${lw ? `, peso ${lw.weight_kg}kg (${lw.date})` : ""}.`;
+
+  const nm = nextMs?.[0];
+  const metasLine = (activeGoals ?? []).length
+    ? `Metas: ${(activeGoals ?? []).length} activa(s)${nm ? `. Próximo hito: "${nm.title}" (${nm.due_date})` : ""}. Usa consultar_metas para el detalle.`
+    : "Sin metas activas.";
+
   return `Estado de hoy (${today}):
 Prioridades: ${prioList}
 Hábitos (${done.size}/${(habits ?? []).length}): ${habitsList}
 Finanzas del mes: saldo ${formatCurrency(balance)}, ingresos ${formatCurrency(income)}, gastos ${formatCurrency(expenses)}.
 ${payLine}
 ${gymLine}${calLine}
-${examLine}`;
+${examLine}
+${healthLine}
+${metasLine}`;
 }
 
 async function buildFinanceDetail(supabase: DB, today: string): Promise<string> {
@@ -948,4 +1245,87 @@ async function buildRoutine(supabase: DB): Promise<string> {
 
   const daysStr = dlist.map((d) => d.name).join(" → ") || "sin días";
   return `Rutina activa: ${routine.name} (${daysStr}). Hoy sugerido: ${suggested?.name ?? "—"}${suggested ? ` — ${exLine}` : ""}.`;
+}
+
+async function buildHealthDetail(supabase: DB, today: string): Promise<string> {
+  const since30 = new Date(Date.now() - 29 * 86400000).toISOString().split("T")[0];
+  const since180 = new Date(Date.now() - 179 * 86400000).toISOString().split("T")[0];
+  const [{ data: entriesRaw }, { data: weightsRaw }] = await Promise.all([
+    supabase.from("health_entries").select("*").gte("date", since30).order("date", { ascending: false }),
+    supabase.from("weight_logs").select("*").gte("date", since180).order("date", { ascending: true }),
+  ]);
+  const entries = (entriesRaw ?? []) as HealthEntry[];
+  const weights = (weightsRaw ?? []) as WeightLog[];
+  if (entries.length === 0 && weights.length === 0) {
+    return `Salud (${today}): aún no hay registros de salud ni de peso.`;
+  }
+  const last7 = entries.slice(0, 7);
+  const w = weightStats(weights);
+  const avgSleep = avg(last7.map((e) => e.sleep_hours));
+  const avgMood = avg(last7.map((e) => e.mood));
+  const avgEnergy = avg(last7.map((e) => e.energy));
+  const avgSteps = avg(last7.map((e) => e.steps));
+  const debt = sleepDebt(last7);
+  const sleepCmp = compareWindows(entries, "sleep_hours");
+  const corrSleepMood = correlate(entries, "sleep_hours", "mood");
+  const corrSleepEnergy = correlate(entries, "sleep_hours", "energy");
+  const d = (x: number | null, u = "") => (x == null ? "" : ` (${x > 0 ? "+" : ""}${x}${u} vs 7d previos)`);
+
+  const weightLine = w
+    ? `Peso actual ${w.current}kg (${w.currentDate})${w.count > 1 ? `, ${w.delta > 0 ? "+" : ""}${w.delta}kg en el período` : ""}${w.bodyFat ? `, ${w.bodyFat}% grasa` : ""}.`
+    : "Sin registros de peso.";
+
+  return `Salud (${today}):
+${weightLine}
+Sueño 7d: ${avgSleep ?? "s/d"}h${d(sleepCmp.delta, "h")}, deuda ${debt > 0 ? `−${debt}h` : debt < 0 ? `+${Math.abs(debt)}h` : "0"} vs objetivo 7.5h.
+Ánimo 7d: ${avgMood ?? "s/d"}/5. Energía 7d: ${avgEnergy ?? "s/d"}/5. Pasos 7d: ${avgSteps ? Math.round(avgSteps) : "s/d"}.
+Patrones: sueño↔ánimo ${corrLabel(corrSleepMood)}; sueño↔energía ${corrLabel(corrSleepEnergy)}.`;
+}
+
+async function buildMetas(supabase: DB, today: string): Promise<string> {
+  const start30 = new Date(Date.now() - 29 * 86400000).toISOString().split("T")[0];
+  const [{ data: goals }, { data: milestones }, { data: links }, { data: habits }, { data: comps }] = await Promise.all([
+    supabase.from("goals").select("*").eq("status", "active").order("pinned", { ascending: false }).order("sort_order"),
+    supabase.from("goal_milestones").select("*").order("sort_order"),
+    supabase.from("goal_habits").select("*"),
+    supabase.from("habits").select("id, name").eq("active", true),
+    supabase.from("habit_completions").select("habit_id, date").gte("date", start30).lte("date", today),
+  ]);
+
+  const gs = (goals ?? []) as Goal[];
+  if (gs.length === 0) return "André no tiene metas activas.";
+
+  const msByGoal: Record<string, GoalMilestone[]> = {};
+  for (const m of (milestones ?? []) as GoalMilestone[]) (msByGoal[m.goal_id] ??= []).push(m);
+
+  const habitName: Record<string, string> = {};
+  for (const h of habits ?? []) habitName[h.id] = h.name;
+  const compCount: Record<string, number> = {};
+  for (const c of comps ?? []) compCount[c.habit_id] = (compCount[c.habit_id] ?? 0) + 1;
+  const linksByGoal: Record<string, string[]> = {};
+  for (const l of links ?? []) (linksByGoal[l.goal_id] ??= []).push(l.habit_id);
+
+  const lines = gs.map((g) => {
+    const ms = msByGoal[g.id] ?? [];
+    const pct = goalPct(g, ms);
+    const pace = goalPace(g, pct, today);
+    const paceTag = pace.status === "none" ? "sin fecha" : pace.label.toLowerCase();
+    const parts = [`${g.title}: ${pct}% (${paceTag})`];
+    if (g.target_date) parts.push(`objetivo ${g.target_date}`);
+
+    const pending = ms.filter((m) => !m.done);
+    if (ms.length) {
+      const next = pending.filter((m) => m.due_date).sort((a, b) => a.due_date!.localeCompare(b.due_date!))[0] ?? pending[0];
+      const nextTag = next ? `, próximo: "${next.title}"${next.due_date ? ` (${next.due_date}, ${milestoneState(next, today)})` : ""}` : "";
+      parts.push(`hitos ${ms.filter((m) => m.done).length}/${ms.length}${nextTag}`);
+    }
+
+    const linked = (linksByGoal[g.id] ?? []).map((id) => `${habitName[id] ?? "?"} ${Math.round(((compCount[id] ?? 0) / 30) * 100)}%`);
+    if (linked.length) parts.push(`motor: ${linked.join(", ")}`);
+    else parts.push("sin hábitos vinculados");
+
+    return `- ${parts.join(" · ")}`;
+  });
+
+  return `Metas activas (${today}):\n${lines.join("\n")}`;
 }

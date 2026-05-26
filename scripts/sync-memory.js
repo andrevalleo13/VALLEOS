@@ -80,9 +80,12 @@ async function habits() {
 }
 
 async function goals() {
-  const [{ data: gs }, { data: ms }, { data: clients }, { data: projects }] = await Promise.all([
-    sb.from('goals').select('*').neq('status', 'completed').order('sort_order'),
+  const [{ data: gs }, { data: ms }, { data: links }, { data: habits }, { data: comps }, { data: clients }, { data: projects }] = await Promise.all([
+    sb.from('goals').select('*').neq('status', 'completed').neq('status', 'archived').order('sort_order'),
     sb.from('goal_milestones').select('*').order('sort_order'),
+    sb.from('goal_habits').select('*'),
+    sb.from('habits').select('id, name').eq('active', true),
+    sb.from('habit_completions').select('habit_id, date').gte('date', d30).lte('date', todayStr),
     sb.from('flouvia_clients').select('*').order('sort_order'),
     sb.from('flouvia_projects').select('*').order('created_at', { ascending: false }),
   ]);
@@ -90,18 +93,33 @@ async function goals() {
   const msById = {};
   for (const m of ms ?? []) (msById[m.goal_id] ??= []).push(m);
 
+  const habitName = {};
+  for (const h of habits ?? []) habitName[h.id] = h.name;
+  const compCount = {};
+  for (const c of comps ?? []) compCount[c.habit_id] = (compCount[c.habit_id] ?? 0) + 1;
+  const linksByGoal = {};
+  for (const l of links ?? []) (linksByGoal[l.goal_id] ??= []).push(l.habit_id);
+
   let md = frontmatter('goals-flouvia', "André's active goals, milestones, and Flouvia CRM — synced from Valle OS");
   md += '## Metas activas\n\n';
 
   for (const g of gs ?? []) {
-    const pct = g.target_value ? Math.round(100 * g.current_value / g.target_value) : null;
+    const hitos = (msById[g.id] ?? []).slice().sort((a, b) => (a.due_date ?? '').localeCompare(b.due_date ?? ''));
+    const pct = g.progress_type === 'milestones' && hitos.length
+      ? Math.round(100 * hitos.filter(m => m.done).length / hitos.length)
+      : g.target_value ? Math.round(100 * g.current_value / g.target_value)
+      : Math.round(g.current_value);
     md += `### ${g.title}\n`;
-    md += `- Categoría: ${g.category} · Estado: ${g.status}\n`;
-    if (g.target_value != null) md += `- Progreso: ${g.current_value}/${g.target_value} ${g.unit ?? ''} (${pct}%)\n`;
+    md += `- Categoría: ${g.category} · Estado: ${g.status} · Progreso: ${pct}%\n`;
+    if (g.target_value != null) md += `- Medida: ${g.current_value}/${g.target_value} ${g.unit ?? ''}\n`;
     if (g.target_date) md += `- Fecha meta: ${g.target_date}\n`;
     if (g.description) md += `- ${g.description}\n`;
-    const hitos = msById[g.id] ?? [];
-    if (hitos.length) md += `- Hitos: ${hitos.filter(m => m.done).length}/${hitos.length}\n`;
+    if (hitos.length) {
+      md += `- Hitos (${hitos.filter(m => m.done).length}/${hitos.length}):\n`;
+      for (const h of hitos) md += `  - [${h.done ? 'x' : ' '}] ${h.title}${h.due_date ? ` · ${h.due_date}` : ''}\n`;
+    }
+    const linked = (linksByGoal[g.id] ?? []).map(id => `${habitName[id] ?? '?'} (${Math.round(100 * (compCount[id] ?? 0) / 30)}% 30d)`);
+    if (linked.length) md += `- Sostenida por hábitos: ${linked.join(', ')}\n`;
     md += '\n';
   }
 

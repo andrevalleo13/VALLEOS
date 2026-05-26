@@ -248,15 +248,21 @@ export interface Database {
 
       /* ── Health ────────────────────────────────────────── */
       health_entries: {
-        Row: { id: string; date: string; sleep_hours: number | null; sleep_quality: number | null; weight_kg: number | null; calories: number | null; protein_g: number | null; water_l: number | null; workout_minutes: number | null; workout_type: string | null; mood: number | null; energy: number | null; notes: string | null; created_at: string };
-        Insert: Omit<Database["public"]["Tables"]["health_entries"]["Row"], "id" | "created_at">;
+        Row: { id: string; date: string; sleep_hours: number | null; sleep_quality: number | null; weight_kg: number | null; calories: number | null; protein_g: number | null; water_l: number | null; workout_minutes: number | null; workout_type: string | null; mood: number | null; energy: number | null; steps: number | null; resting_hr: number | null; active_calories: number | null; bedtime: string | null; wake_time: string | null; source: string | null; notes: string | null; created_at: string };
+        Insert: Partial<Omit<Database["public"]["Tables"]["health_entries"]["Row"], "id" | "created_at">> & { date: string };
         Update: Partial<Database["public"]["Tables"]["health_entries"]["Insert"]>;
+        Relationships: [];
+      };
+      weight_logs: {
+        Row: { id: string; date: string; weight_kg: number; body_fat_pct: number | null; muscle_kg: number | null; notes: string | null; source: string | null; created_at: string };
+        Insert: Omit<Database["public"]["Tables"]["weight_logs"]["Row"], "id" | "created_at">;
+        Update: Partial<Database["public"]["Tables"]["weight_logs"]["Insert"]>;
         Relationships: [];
       };
 
       /* ── Goals ─────────────────────────────────────────── */
       goals: {
-        Row: { id: string; title: string; category: string; description: string | null; target_date: string | null; progress_type: string; current_value: number; target_value: number | null; unit: string | null; image_url: string | null; pinned: boolean; status: string; completed_at: string | null; sort_order: number; created_at: string };
+        Row: { id: string; title: string; category: string; description: string | null; target_date: string | null; started_at: string | null; progress_type: string; current_value: number; target_value: number | null; unit: string | null; image_url: string | null; pinned: boolean; status: string; completed_at: string | null; sort_order: number; created_at: string };
         Insert: Omit<Database["public"]["Tables"]["goals"]["Row"], "id" | "created_at">;
         Update: Partial<Database["public"]["Tables"]["goals"]["Insert"]>;
         Relationships: [];
@@ -265,6 +271,12 @@ export interface Database {
         Row: { id: string; goal_id: string; title: string; done: boolean; done_at: string | null; due_date: string | null; sort_order: number; created_at: string };
         Insert: Omit<Database["public"]["Tables"]["goal_milestones"]["Row"], "id" | "created_at">;
         Update: Partial<Database["public"]["Tables"]["goal_milestones"]["Insert"]>;
+        Relationships: [];
+      };
+      goal_habits: {
+        Row: { goal_id: string; habit_id: string; created_at: string };
+        Insert: Omit<Database["public"]["Tables"]["goal_habits"]["Row"], "created_at">;
+        Update: Partial<Database["public"]["Tables"]["goal_habits"]["Insert"]>;
         Relationships: [];
       };
 
@@ -276,7 +288,7 @@ export interface Database {
         Relationships: [];
       };
       time_logs: {
-        Row: { id: string; block_id: string | null; label: string; started_at: string; ended_at: string | null; duration_minutes: number | null; category: string | null; created_at: string };
+        Row: { id: string; block_id: string | null; label: string; started_at: string; ended_at: string | null; duration_minutes: number | null; category: string | null; client_id: string | null; created_at: string };
         Insert: Omit<Database["public"]["Tables"]["time_logs"]["Row"], "id" | "created_at" | "duration_minutes">;
         Update: Partial<Database["public"]["Tables"]["time_logs"]["Insert"]>;
         Relationships: [];
@@ -364,11 +376,13 @@ export type ShadowMemory = Database["public"]["Tables"]["shadow_memory"]["Row"];
 export type BrainNote = Database["public"]["Tables"]["brain_notes"]["Row"];
 export type Goal = Database["public"]["Tables"]["goals"]["Row"];
 export type GoalMilestone = Database["public"]["Tables"]["goal_milestones"]["Row"];
+export type GoalHabit = Database["public"]["Tables"]["goal_habits"]["Row"];
 export type AcademicCourse = Database["public"]["Tables"]["academic_courses"]["Row"];
 export type Assignment = Database["public"]["Tables"]["assignments"]["Row"];
 export type GradeComponent = Database["public"]["Tables"]["grade_components"]["Row"];
 export type ClassSchedule = Database["public"]["Tables"]["class_schedule"]["Row"];
 export type HealthEntry = Database["public"]["Tables"]["health_entries"]["Row"];
+export type WeightLog = Database["public"]["Tables"]["weight_logs"]["Row"];
 export type UserPreferences = Database["public"]["Tables"]["user_preferences"]["Row"];
 export type TimeBlock = Database["public"]["Tables"]["time_blocks"]["Row"];
 export type ReadingItem = Database["public"]["Tables"]["reading_items"]["Row"];

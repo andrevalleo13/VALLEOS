@@ -2,56 +2,65 @@ import { createClient } from "@/lib/supabase/server";
 import { Target } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { AddGoal } from "./AddGoal";
-import { GoalProgress } from "./GoalProgress";
-import type { Goal, GoalMilestone } from "@/lib/supabase/types";
+import { GoalCard } from "./GoalCard";
+import { catColor } from "@/lib/metas/categories";
+import { goalPct } from "@/lib/metas/progress";
+import type { Goal, GoalMilestone, GoalHabit, Habit } from "@/lib/supabase/types";
 
 export const revalidate = 0;
 
-const CAT_COLORS: Record<string, string> = {
-  career: "var(--gold)",
-  finance: "var(--green)",
-  health: "var(--red)",
-  learning: "var(--violet)",
-  relationships: "var(--blue)",
-  experience: "var(--gold-2)",
-  creative: "var(--violet)",
-  other: "var(--mute)",
-};
-
-const CAT_LABELS: Record<string, string> = {
-  career: "Carrera",
-  finance: "Finanzas",
-  health: "Salud",
-  learning: "Aprendizaje",
-  relationships: "Relaciones",
-  experience: "Experiencias",
-  creative: "Creativo",
-  other: "Otro",
-};
-
 type GoalWithMilestones = Goal & { goal_milestones: GoalMilestone[] };
+export type LinkedHabit = { id: string; name: string; color: string; adherence: number };
+
+const iso = (d: Date) => d.toISOString().split("T")[0];
 
 export default async function MetasPage() {
   const supabase = await createClient();
 
-  const { data: goals } = await supabase
-    .from("goals")
-    .select("*, goal_milestones(*)")
-    .neq("status", "abandoned")
-    .order("pinned", { ascending: false })
-    .order("sort_order")
-    .order("created_at");
+  const start30 = new Date();
+  start30.setDate(start30.getDate() - 29);
 
-  const { data: capitalGoals } = await supabase
-    .from("capital_goals")
-    .select("*");
+  const [{ data: goals }, { data: capitalGoals }, { data: links }, { data: habits }, { data: comps }] = await Promise.all([
+    supabase
+      .from("goals")
+      .select("*, goal_milestones(*)")
+      .neq("status", "abandoned")
+      .neq("status", "archived")
+      .order("pinned", { ascending: false })
+      .order("sort_order")
+      .order("created_at"),
+    supabase.from("capital_goals").select("*"),
+    supabase.from("goal_habits").select("*"),
+    supabase.from("habits").select("*").eq("active", true).order("sort_order"),
+    supabase.from("habit_completions").select("habit_id, date").gte("date", iso(start30)).lte("date", iso(new Date())),
+  ]);
 
   const typedGoals = (goals ?? []) as unknown as GoalWithMilestones[];
-  const active = typedGoals.filter((g) => g.status === "active").length;
+  const allHabits = (habits ?? []) as Habit[];
+  const allLinks = (links ?? []) as GoalHabit[];
+
+  // Adherencia 30d por hábito (completados / 30), igual que el desglose de Hábitos.
+  const compCount: Record<string, number> = {};
+  for (const c of comps ?? []) compCount[c.habit_id] = (compCount[c.habit_id] ?? 0) + 1;
+  const adherence: Record<string, number> = {};
+  for (const h of allHabits) adherence[h.id] = Math.round(((compCount[h.id] ?? 0) / 30) * 100);
+
+  function habitsFor(goalId: string): LinkedHabit[] {
+    return allLinks
+      .filter((l) => l.goal_id === goalId)
+      .map((l) => allHabits.find((h) => h.id === l.habit_id))
+      .filter((h): h is Habit => !!h)
+      .map((h) => ({ id: h.id, name: h.name, color: h.color, adherence: adherence[h.id] ?? 0 }));
+  }
+
+  const activeGoals = typedGoals.filter((g) => g.status === "active");
+  const active = activeGoals.length;
   const completed = typedGoals.filter((g) => g.status === "completed").length;
-  const avgProgress = typedGoals.length > 0
-    ? Math.round(typedGoals.filter(g => g.status === "active").reduce((a, g) => a + g.current_value, 0) / (active || 1))
+  const avgProgress = active > 0
+    ? Math.round(activeGoals.reduce((a, g) => a + goalPct(g, g.goal_milestones ?? []), 0) / active)
     : 0;
+
+  const habitOptions = allHabits.map((h) => ({ id: h.id, name: h.name, color: h.color, adherence: adherence[h.id] ?? 0 }));
 
   return (
     <div>
@@ -61,7 +70,7 @@ export default async function MetasPage() {
             <p className="eyebrow mb-2">07 · OBJETIVOS</p>
             <h1 className="page-title">Metas.</h1>
           </div>
-          <AddGoal />
+          <AddGoal habits={habitOptions} />
         </div>
       </div>
 
@@ -113,58 +122,20 @@ export default async function MetasPage() {
           <div className="card text-center py-12">
             <Target size={32} style={{ color: "var(--mute-2)", margin: "0 auto 12px" }} />
             <p style={{ color: "var(--mute)", fontSize: 14, marginBottom: 16 }}>Sin metas configuradas</p>
-            <AddGoal label="Crear primera meta" />
+            <AddGoal label="Crear primera meta" habits={habitOptions} />
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            {typedGoals.map((g) => {
-              const color = CAT_COLORS[g.category] ?? "var(--mute)";
-
-              return (
-                <div key={g.id} className="card" style={g.pinned ? { borderColor: color } : {}}>
-                  <div className="flex items-start gap-4">
-                    <div
-                      style={{
-                        width: 36, height: 36, borderRadius: 10,
-                        background: `${color}22`, border: `1px solid ${color}`,
-                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                      }}
-                    >
-                      <Target size={16} style={{ color }} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <h3 style={{ fontWeight: 500, color: "var(--bone)", fontSize: 15 }}>{g.title}</h3>
-                        {g.pinned && <span className="tag-gold tag" style={{ fontSize: 10 }}>Anclada</span>}
-                        <div className="ml-auto flex gap-2">
-                          {g.target_date && <span className="tag" style={{ fontSize: 10 }}>{g.target_date}</span>}
-                          <span
-                            className="tag"
-                            style={{ borderColor: color, color, background: `${color}15`, fontSize: 10 }}
-                          >
-                            {CAT_LABELS[g.category] ?? g.category}
-                          </span>
-                        </div>
-                      </div>
-
-                      {g.description && (
-                        <p style={{ color: "var(--mute)", fontSize: 13, marginBottom: 10 }}>{g.description}</p>
-                      )}
-
-                      <GoalProgress
-                        goalId={g.id}
-                        progressType={g.progress_type}
-                        currentValue={g.current_value}
-                        targetValue={g.target_value}
-                        unit={g.unit}
-                        color={color}
-                        milestones={g.goal_milestones ?? []}
-                      />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {typedGoals.map((g) => (
+              <GoalCard
+                key={g.id}
+                goal={g}
+                milestones={g.goal_milestones ?? []}
+                linkedHabits={habitsFor(g.id)}
+                allHabits={habitOptions}
+                color={catColor(g.category)}
+              />
+            ))}
           </div>
         )}
       </div>
