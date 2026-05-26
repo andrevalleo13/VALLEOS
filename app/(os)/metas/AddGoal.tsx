@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Modal, Field } from "@/components/Modal";
+import { useQuickAction } from "@/lib/store";
 import { GOAL_CATS } from "@/lib/metas/categories";
 import type { LinkedHabit } from "./page";
 
@@ -32,6 +33,7 @@ export function AddGoal({
   const [ms, setMs] = useState<LocalMs[]>([]);
   const [linked, setLinked] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  useQuickAction("meta", () => setOpen(true));
 
   function reset() {
     setTitle(""); setTargetValue(""); setUnit(""); setTargetDate(""); setDescription("");

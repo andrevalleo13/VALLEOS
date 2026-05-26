@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Modal, Field } from "@/components/Modal";
+import { useQuickAction } from "@/lib/store";
 import type { FinancialCategory } from "@/lib/supabase/types";
 import { BUCKETS, SPENDING_BUCKETS, type Bucket } from "@/lib/finance/categories";
 
@@ -42,6 +43,7 @@ export function AddEntry({
   const [cardId, setCardId] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [saving, setSaving] = useState(false);
+  useQuickAction("gasto", () => setOpen(true));
 
   const isExpense = CATS.find((c) => c.v === cat)?.expense ?? true;
   const usesCard = method === "tarjeta de crédito";

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/utils";
-import { TrendingUp, TrendingDown, CreditCard, Landmark, Repeat, CalendarClock } from "lucide-react";
+import { TrendingUp, TrendingDown, CreditCard, Landmark, Repeat, CalendarClock, Receipt } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { AddEntry } from "./AddEntry";
 import { AddAccount } from "./AddAccount";
 import { AddCard } from "./AddCard";
@@ -280,9 +281,14 @@ export default async function FinanzasPage() {
             {entries.length > 0 && <span className="tick">{entries.length} este mes</span>}
           </div>
           {entries.length === 0 ? (
-            <div className="card text-center py-8">
-              <p style={{ color: "var(--mute)", fontSize: 14, marginBottom: 16 }}>Sin movimientos este mes</p>
-              <AddEntry variant="primary" label="Registrar primero" accounts={accountOpts} cards={cardOpts} />
+            <div className="card">
+              <EmptyState
+                icon={Receipt}
+                title="Sin movimientos este mes"
+                hint="Registra tu primer ingreso o gasto para ver tu actividad aquí."
+              >
+                <AddEntry variant="primary" label="Registrar primero" accounts={accountOpts} cards={cardOpts} />
+              </EmptyState>
             </div>
           ) : (
             <div className="tx-list">

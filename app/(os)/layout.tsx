@@ -10,6 +10,7 @@ import { FocusBanner } from "@/components/shell/FocusBanner";
 import { LockScreen } from "@/components/shell/LockScreen";
 import { BootSequence } from "@/components/shell/BootSequence";
 import { SoundLayer } from "@/components/shell/SoundLayer";
+import { PageTransition } from "@/components/shell/PageTransition";
 
 export default function OSLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -20,7 +21,7 @@ export default function OSLayout({ children }: { children: React.ReactNode }) {
         <div className="shell">
           <Sidebar />
           <Topbar />
-          <main className="shell-content">{children}</main>
+          <main className="shell-content"><PageTransition>{children}</PageTransition></main>
         </div>
         <VoiceOrb />
         <CmdK />

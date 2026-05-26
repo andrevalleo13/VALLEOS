@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Scale } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Modal, Field } from "@/components/Modal";
+import { useQuickAction } from "@/lib/store";
 
 const num = (s: string) => (s.trim() && isFinite(parseFloat(s)) ? parseFloat(s) : null);
 
@@ -17,6 +18,7 @@ export function LogWeight({ variant = "ghost", label = "Peso" }: { variant?: "gh
   const [muscle, setMuscle] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  useQuickAction("peso", () => setOpen(true));
 
   async function save() {
     const w = num(weight);

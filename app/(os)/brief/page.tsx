@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { greeting, todayISO } from "@/lib/utils";
+import { buildBriefRadar } from "@/lib/brief/today";
 import { BriefClient } from "./BriefClient";
 
 export const revalidate = 0;
@@ -17,6 +18,7 @@ export default async function BriefPage() {
     { data: entries },
     { data: banks },
     { data: briefCache },
+    radar,
   ] = await Promise.all([
     supabase.from("user_preferences").select("*").single(),
     supabase.from("priorities").select("id, text, completed").eq("date", today).order("created_at"),
@@ -26,6 +28,7 @@ export default async function BriefPage() {
     supabase.from("financial_entries").select("category, amount").gte("date", today.slice(0, 7) + "-01"),
     supabase.from("bank_accounts").select("current_balance, currency").eq("active", true),
     supabase.from("shadow_cache").select("content").eq("key", `brief:${today}`).single(),
+    buildBriefRadar(supabase, today),
   ]);
 
   const totalBalance = (banks ?? [])
@@ -60,6 +63,9 @@ export default async function BriefPage() {
       totalBalance={totalBalance}
       monthIncome={monthIncome}
       monthExpenses={monthExpenses}
+      radar={radar.items}
+      tiempoHoy={radar.tiempoHoy}
+      libro={radar.libro}
     />
   );
 }

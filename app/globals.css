@@ -726,7 +726,10 @@
   overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: var(--line-2) transparent;
-  animation: page-in 480ms cubic-bezier(.2, .7, .2, 1);
+}
+
+.page-transition {
+  animation: page-in 420ms cubic-bezier(.2, .7, .2, 1);
 }
 
 @keyframes page-in {
@@ -1354,6 +1357,53 @@
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-block {
+  display: block;
+  background: linear-gradient(
+    90deg,
+    var(--glass-bg) 25%,
+    var(--glass-bg-2) 50%,
+    var(--glass-bg) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+/* ─── Empty States ───────────────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 24px;
+  gap: 5px;
+}
+.empty-state-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-bd);
+  color: var(--mute);
+  margin-bottom: 10px;
+}
+.empty-state-title {
+  color: var(--bone-dim);
+  font-size: 15px;
+}
+.empty-state-hint {
+  color: var(--mute);
+  font-size: 13px;
+  max-width: 300px;
+  line-height: 1.55;
+}
+.empty-state-cta {
+  margin-top: 14px;
 }
 
 /* ─── Lock Screen ────────────────────────────────────────────────── */
@@ -3780,6 +3830,8 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .boot-orb, .boot-spark, .boot-ring, .boot-word { animation-duration: 0.01s; }
+  .page-transition { animation: none; }
+  .skeleton-block { animation: none; }
 }
 
 /* ── Brain: auto-tagging ───────────────────────────────────────────────── */

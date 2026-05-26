@@ -1,4 +1,5 @@
 "use client";
+import { useEffect } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -30,11 +31,13 @@ interface AppState {
   cierreOpen: boolean;
   ajustesOpen: boolean;
   mobileMenu: boolean;
+  quickAction: string | null;
   ajustes: Ajustes;
 
   setLocked: (v: boolean) => void;
   setCmdkOpen: (v: boolean) => void;
   setCaptureOpen: (v: boolean) => void;
+  setQuickAction: (v: string | null) => void;
   setFocusMode: (v: boolean) => void;
   setCierreOpen: (v: boolean) => void;
   setAjustesOpen: (v: boolean) => void;
@@ -53,6 +56,7 @@ export const useAppStore = create<AppState>()(
       cierreOpen: false,
       ajustesOpen: false,
       mobileMenu: false,
+      quickAction: null,
       ajustes: {
         theme: "oro-negro",
         font: "geist",
@@ -66,6 +70,7 @@ export const useAppStore = create<AppState>()(
       setLocked: (v) => set({ locked: v }),
       setCmdkOpen: (v) => set({ cmdkOpen: v }),
       setCaptureOpen: (v) => set({ captureOpen: v }),
+      setQuickAction: (v) => set({ quickAction: v }),
       setFocusMode: (v) => set({ focusMode: v }),
       setCierreOpen: (v) => set({ cierreOpen: v }),
       setAjustesOpen: (v) => set({ ajustesOpen: v }),
@@ -81,3 +86,16 @@ export const useAppStore = create<AppState>()(
     }
   )
 );
+
+// Las islas (AddEntry, LogWeight, AddGoal, LogSession) registran su key aquí.
+// CmdK setea quickAction + navega a la página → la isla se auto-abre y limpia el flag.
+export function useQuickAction(key: string, open: () => void) {
+  const quickAction = useAppStore((s) => s.quickAction);
+  const setQuickAction = useAppStore((s) => s.setQuickAction);
+  useEffect(() => {
+    if (quickAction === key) {
+      open();
+      setQuickAction(null);
+    }
+  }, [quickAction, key, open, setQuickAction]);
+}

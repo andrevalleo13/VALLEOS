@@ -6,11 +6,16 @@ import { formatCurrency } from "@/lib/utils";
 import { Orb } from "@/components/Orb";
 import {
   ArrowRight, Check, Plus, X, RefreshCw, Calendar as CalIcon, Pencil,
+  Dumbbell, GraduationCap, CreditCard, Flag, Briefcase, Clock, BookOpen, Sparkles,
 } from "lucide-react";
+import type { RadarItem } from "@/lib/brief/today";
+import { fmtHours } from "@/lib/tiempo/categories";
 
 type Priority = { id: string; text: string; completed: boolean };
 type Habit = { id: string; name: string };
 type CalEvent = { id: string; title: string | null; start: string | null };
+
+const RADAR_ICONS = { Dumbbell, GraduationCap, CreditCard, Flag, Briefcase } as const;
 
 export function BriefClient({
   today,
@@ -27,6 +32,9 @@ export function BriefClient({
   totalBalance,
   monthIncome,
   monthExpenses,
+  radar,
+  tiempoHoy,
+  libro,
 }: {
   today: string;
   greetingText: string;
@@ -42,6 +50,9 @@ export function BriefClient({
   totalBalance: number;
   monthIncome: number;
   monthExpenses: number;
+  radar: RadarItem[];
+  tiempoHoy: number;
+  libro: { title: string; current: number | null; total: number | null; pct: number | null } | null;
 }) {
   const supabase = createClient();
 
@@ -164,6 +175,63 @@ export function BriefClient({
           <KPI label="Saldo MXN" value={totalBalance > 0 ? formatCurrency(totalBalance) : "—"} />
           <KPI label="Neto del mes" value={net !== 0 ? `${net > 0 ? "+" : ""}${formatCurrency(net)}` : "—"} accent={net > 0 ? "var(--green)" : net < 0 ? "var(--red)" : undefined} />
         </div>
+      </div>
+
+      {/* Atender hoy — radar accionable */}
+      <div className="page-body" style={{ paddingBottom: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <p className="eyebrow">Atender hoy</p>
+          {radar.some((r) => r.urgent) && (
+            <span className="tick" style={{ color: "var(--red)" }}>
+              {radar.filter((r) => r.urgent).length} urgente{radar.filter((r) => r.urgent).length > 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+        {radar.length === 0 ? (
+          <div className="card" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Sparkles size={16} style={{ color: "var(--green)" }} />
+            <p style={{ fontSize: 13, color: "var(--bone-dim)" }}>
+              Nada urgente en el radar. Día despejado — concéntrate en tu intención.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+            {radar.map((item) => {
+              const Icon = RADAR_ICONS[item.icon];
+              return (
+                <Link
+                  key={item.key}
+                  href={item.href}
+                  className="card"
+                  style={{
+                    textDecoration: "none",
+                    padding: 14,
+                    display: "flex",
+                    gap: 11,
+                    alignItems: "flex-start",
+                    borderColor: item.urgent ? item.tone : "var(--glass-bd)",
+                    background: item.urgent ? `color-mix(in srgb, ${item.tone} 7%, transparent)` : undefined,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                      display: "grid", placeItems: "center",
+                      background: `color-mix(in srgb, ${item.tone} 14%, transparent)`,
+                      color: item.tone,
+                    }}
+                  >
+                    <Icon size={14} />
+                  </span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <p className="eyebrow" style={{ color: item.tone, marginBottom: 3 }}>{item.label}</p>
+                    <p style={{ fontSize: 12.5, color: "var(--bone-dim)", lineHeight: 1.45 }}>{item.detail}</p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Two-column body */}
@@ -380,6 +448,44 @@ export function BriefClient({
               </div>
             </div>
           </Link>
+
+          {/* Tiempo + Lectura */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <Link href="/tiempo" className="card" style={{ textDecoration: "none" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <p className="eyebrow">Tiempo · hoy</p>
+                <Clock size={13} style={{ color: "var(--mute-2)" }} />
+              </div>
+              <p style={{ fontFamily: "var(--f-mono)", fontSize: 24, color: tiempoHoy > 0 ? "var(--bone)" : "var(--mute)", lineHeight: 1 }}>
+                {fmtHours(tiempoHoy)}
+              </p>
+              <p className="metric-label mt-1">{tiempoHoy > 0 ? "registrado" : "sin registrar"}</p>
+            </Link>
+
+            <Link href="/lectura" className="card" style={{ textDecoration: "none" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <p className="eyebrow">Leyendo</p>
+                <BookOpen size={13} style={{ color: "var(--mute-2)" }} />
+              </div>
+              {libro ? (
+                <>
+                  <p style={{ fontSize: 14, color: "var(--bone)", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                    {libro.title}
+                  </p>
+                  {libro.pct != null ? (
+                    <div style={{ marginTop: 10 }}>
+                      <div className="progress mb-1"><div className="progress-fill" style={{ width: `${libro.pct}%`, background: "var(--gold)" }} /></div>
+                      <p className="tick">p. {libro.current}/{libro.total} · {libro.pct}%</p>
+                    </div>
+                  ) : (
+                    <p className="tick" style={{ marginTop: 8 }}>En progreso</p>
+                  )}
+                </>
+              ) : (
+                <p className="tick" style={{ marginTop: 4 }}>Nada en progreso</p>
+              )}
+            </Link>
+          </div>
 
           {/* Visión */}
           {visionSecondary && (

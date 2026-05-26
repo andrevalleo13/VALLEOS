@@ -4,6 +4,8 @@ import { ActivityHeatmap, WeeklyHours, CategoryDonut, ClientHours, DayRhythm } f
 import type { CatSlice, WeekBar, ClientSlice } from "./TiempoCharts";
 import { LogTime } from "./LogTime";
 import { Patrones, type Pattern } from "./Patrones";
+import { EmptyState } from "@/components/EmptyState";
+import { Clock } from "lucide-react";
 
 export const revalidate = 0;
 
@@ -192,10 +194,13 @@ export default async function TiempoPage() {
         <div className="card">
           <p className="eyebrow mb-4">Sesiones recientes</p>
           {allLogs.length === 0 ? (
-            <div className="text-center py-6">
-              <p className="tick mb-4">Sin logs registrados</p>
+            <EmptyState
+              icon={Clock}
+              title="Sin logs registrados"
+              hint="Registra una sesión para empezar a ver tus patrones de tiempo."
+            >
               <LogTime clients={clients ?? []} label="Registrar sesión" />
-            </div>
+            </EmptyState>
           ) : (
             <div className="flex flex-col gap-1">
               {allLogs.slice(0, 20).map((l) => (

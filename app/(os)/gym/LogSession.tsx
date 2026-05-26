@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Plus, X, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Modal, Field } from "@/components/Modal";
+import { useQuickAction } from "@/lib/store";
 import { MUSCLES } from "@/lib/gym/muscles";
 import type { WorkoutRoutine, WorkoutDay, WorkoutExercise } from "@/lib/supabase/types";
 
@@ -27,6 +28,7 @@ export function LogSession({
   const supabase = createClient();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  useQuickAction("entreno", () => setOpen(true));
 
   const activeRoutine = routines.find((r) => r.active) ?? routines[0] ?? null;
   const routineDays = days

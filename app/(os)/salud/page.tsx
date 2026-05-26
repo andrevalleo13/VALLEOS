@@ -7,6 +7,8 @@ import { Analysis } from "./Analysis";
 import {
   avg, weightStats, sleepDebt, compareWindows, correlate, corrLabel, sleepColor, SLEEP_TARGET,
 } from "@/lib/salud/health";
+import { EmptyState } from "@/components/EmptyState";
+import { HeartPulse } from "lucide-react";
 
 export const revalidate = 0;
 
