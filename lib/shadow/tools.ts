@@ -655,7 +655,7 @@ export async function executeTool(
             totalSets++;
             rows.push({
               session_id: sess.id, exercise_id: match?.id ?? null, exercise_name: nombre,
-              muscle_group: muscle, set_number: i + 1, weight_kg: peso, reps, rpe: null,
+              muscle_group: muscle, set_number: i + 1, weight_kg: peso, reps, duration_seconds: null, rpe: null,
             });
           }
         }

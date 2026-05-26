@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Plus, Search, Sparkles } from "lucide-react";
+import { Plus, Search, Sparkles, Link as LinkIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { BrainNote } from "@/lib/supabase/types";
 import ObsidianVault from "@/components/brain/ObsidianVault";
@@ -15,6 +15,7 @@ export default function BrainPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"brain" | "vault">("brain");
   const [obsidianKey, setObsidianKeyState] = useState("");
+  const [tagging, setTagging] = useState<string | null>(null);
 
   useEffect(() => {
     load();
@@ -52,17 +53,41 @@ export default function BrainPage() {
       }
     }
 
-    await supabase.from("brain_notes").insert({ content, source: "quick_capture", title, obsidian_path });
+    const { data: inserted } = await supabase
+      .from("brain_notes")
+      .insert({ content, source: "quick_capture", title, obsidian_path })
+      .select("id")
+      .single();
     setNewNote("");
     setSaving(false);
     await load();
+
+    // Shadow enlaza la nota: extrae etiquetas + notas relacionadas (no bloquea la captura)
+    if (inserted?.id) {
+      setTagging(inserted.id);
+      try {
+        await fetch("/api/brain/tag", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: inserted.id }),
+        });
+        await load();
+      } catch {
+        /* noop */
+      } finally {
+        setTagging(null);
+      }
+    }
   }
+
+  const byId = new Map(notes.map((n) => [n.id, n]));
 
   const filtered = notes.filter((n) => {
     const q = search.toLowerCase();
     return (
       n.content.toLowerCase().includes(q) ||
-      (n.title ?? "").toLowerCase().includes(q)
+      (n.title ?? "").toLowerCase().includes(q) ||
+      (n.tags ?? []).some((t) => t.toLowerCase().includes(q))
     );
   });
 
@@ -171,6 +196,35 @@ export default function BrainPage() {
                       <p style={{ fontSize: 14, color: "var(--bone-dim)", lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                         {note.content}
                       </p>
+
+                      {((note.tags ?? []).length > 0 || tagging === note.id) && (
+                        <div className="bn-tags">
+                          {tagging === note.id && (note.tags ?? []).length === 0 && (
+                            <span className="bn-tagging"><Sparkles size={10} /> Shadow etiquetando…</span>
+                          )}
+                          {(note.tags ?? []).map((t) => (
+                            <button key={t} className="bn-tag" onClick={() => setSearch(t)}>#{t}</button>
+                          ))}
+                        </div>
+                      )}
+
+                      {(note.related_ids ?? []).length > 0 && (
+                        <div className="bn-related">
+                          <LinkIcon size={11} />
+                          <span className="tick">Relacionadas:</span>
+                          {(note.related_ids ?? []).map((rid) => {
+                            const r = byId.get(rid);
+                            if (!r) return null;
+                            const label = r.title ?? r.content.slice(0, 36);
+                            return (
+                              <button key={rid} className="bn-rel-chip" onClick={() => setSearch(label)} title={r.content.slice(0, 120)}>
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
                       <div className="flex items-center gap-3 mt-2">
                         <span className="tag" style={{ fontSize: 10 }}>{note.source}</span>
                         {note.obsidian_path && <span className="tick">{note.obsidian_path}</span>}

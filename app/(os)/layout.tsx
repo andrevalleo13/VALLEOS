@@ -8,22 +8,28 @@ import { CierreFlow } from "@/components/shell/CierreFlow";
 import { AjustesDrawer } from "@/components/shell/AjustesDrawer";
 import { FocusBanner } from "@/components/shell/FocusBanner";
 import { LockScreen } from "@/components/shell/LockScreen";
+import { BootSequence } from "@/components/shell/BootSequence";
+import { SoundLayer } from "@/components/shell/SoundLayer";
 
 export default function OSLayout({ children }: { children: React.ReactNode }) {
   return (
-    <LockScreen>
-      <AmbientBG />
-      <div className="shell">
-        <Sidebar />
-        <Topbar />
-        <main className="shell-content">{children}</main>
-      </div>
-      <VoiceOrb />
-      <CmdK />
-      <CaptureModal />
-      <CierreFlow />
-      <AjustesDrawer />
-      <FocusBanner />
-    </LockScreen>
+    <>
+      <BootSequence />
+      <LockScreen>
+        <AmbientBG />
+        <div className="shell">
+          <Sidebar />
+          <Topbar />
+          <main className="shell-content">{children}</main>
+        </div>
+        <VoiceOrb />
+        <CmdK />
+        <CaptureModal />
+        <CierreFlow />
+        <AjustesDrawer />
+        <FocusBanner />
+        <SoundLayer />
+      </LockScreen>
+    </>
   );
 }

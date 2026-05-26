@@ -9,7 +9,9 @@ import type { WorkoutRoutine, WorkoutDay, WorkoutExercise } from "@/lib/supabase
 
 type Routine = Pick<WorkoutRoutine, "id" | "name" | "active" | "sort_order">;
 type Day = Pick<WorkoutDay, "id" | "routine_id" | "name" | "day_order" | "muscle_groups">;
-type Exercise = Pick<WorkoutExercise, "id" | "day_id" | "name" | "muscle_group" | "target_sets" | "target_reps" | "sort_order">;
+type Exercise = Pick<WorkoutExercise, "id" | "day_id" | "name" | "muscle_group" | "target_sets" | "target_reps" | "tracking_type" | "target_duration_seconds" | "sort_order">;
+
+type ExDraft = { name: string; muscle: string; sets: string; reps: string; trackingType: string };
 
 export function RoutineEditor({
   routines, days, exercises, label = "Editar rutina", primary = false,
@@ -30,13 +32,13 @@ export function RoutineEditor({
   const [selId, setSelId] = useState<string>("");
   const [newRoutine, setNewRoutine] = useState("");
   const [newDay, setNewDay] = useState("");
-  const [exDraft, setExDraft] = useState<Record<string, { name: string; muscle: string; sets: string; reps: string }>>({});
+  const [exDraft, setExDraft] = useState<Record<string, ExDraft>>({});
 
   useEffect(() => {
     if (!open) return;
     setWRoutines(routines.map((r) => ({ id: r.id, name: r.name, active: r.active, sort_order: r.sort_order })));
     setWDays(days.map((d) => ({ id: d.id, routine_id: d.routine_id, name: d.name, day_order: d.day_order, muscle_groups: d.muscle_groups })));
-    setWEx(exercises.map((e) => ({ id: e.id, day_id: e.day_id, name: e.name, muscle_group: e.muscle_group, target_sets: e.target_sets, target_reps: e.target_reps, sort_order: e.sort_order })));
+    setWEx(exercises.map((e) => ({ id: e.id, day_id: e.day_id, name: e.name, muscle_group: e.muscle_group, target_sets: e.target_sets, target_reps: e.target_reps, tracking_type: e.tracking_type ?? "strength", target_duration_seconds: e.target_duration_seconds ?? null, sort_order: e.sort_order })));
     const active = routines.find((r) => r.active) ?? routines[0];
     setSelId((prev) => prev || active?.id || "");
   }, [open, routines, days, exercises]);
@@ -119,11 +121,25 @@ export function RoutineEditor({
     const dayEx = wEx.filter((e) => e.day_id === dayId);
     const order = dayEx.reduce((m, e) => Math.max(m, e.sort_order), -1) + 1;
     const sets = parseInt(draft.sets) || 3;
+    const trackingType = draft.trackingType || "strength";
+    const isTimed = trackingType === "timed";
     const { data } = await supabase.from("workout_exercises").insert({
-      day_id: dayId, name, muscle_group: draft.muscle || null, target_sets: sets, target_reps: draft.reps?.trim() || null, sort_order: order,
+      day_id: dayId,
+      name,
+      muscle_group: draft.muscle || null,
+      target_sets: sets,
+      target_reps: isTimed ? null : (draft.reps?.trim() || null),
+      tracking_type: trackingType,
+      target_duration_seconds: isTimed ? (parseInt(draft.reps) || null) : null,
+      sort_order: order,
     }).select("*").single();
-    if (data) setWEx((p) => [...p, { id: data.id, day_id: data.day_id, name: data.name, muscle_group: data.muscle_group, target_sets: data.target_sets, target_reps: data.target_reps, sort_order: data.sort_order }]);
-    setExDraft((p) => ({ ...p, [dayId]: { name: "", muscle: draft?.muscle ?? "", sets: "3", reps: "" } }));
+    if (data) setWEx((p) => [...p, {
+      id: data.id, day_id: data.day_id, name: data.name, muscle_group: data.muscle_group,
+      target_sets: data.target_sets, target_reps: data.target_reps,
+      tracking_type: data.tracking_type ?? "strength", target_duration_seconds: (data as any).target_duration_seconds ?? null,
+      sort_order: data.sort_order,
+    }]);
+    setExDraft((p) => ({ ...p, [dayId]: { name: "", muscle: draft?.muscle ?? "", sets: "3", reps: "", trackingType: draft?.trackingType ?? "strength" } }));
   }
   function updateExLocal(id: string, patch: Partial<Exercise>) {
     setWEx((p) => p.map((e) => (e.id === id ? { ...e, ...patch } : e)));
@@ -131,14 +147,24 @@ export function RoutineEditor({
   async function persistEx(id: string) {
     const e = wEx.find((x) => x.id === id);
     if (!e) return;
-    await supabase.from("workout_exercises").update({ name: e.name.trim() || "Ejercicio", muscle_group: e.muscle_group, target_sets: e.target_sets, target_reps: e.target_reps }).eq("id", id);
+    const isTimed = e.tracking_type === "timed";
+    await supabase.from("workout_exercises").update({
+      name: e.name.trim() || "Ejercicio",
+      muscle_group: e.muscle_group,
+      target_sets: e.target_sets,
+      target_reps: isTimed ? null : e.target_reps,
+      tracking_type: e.tracking_type,
+      target_duration_seconds: isTimed ? e.target_duration_seconds : null,
+    } as any).eq("id", id);
   }
   async function deleteExercise(id: string) {
     setWEx((p) => p.filter((e) => e.id !== id));
     await supabase.from("workout_exercises").delete().eq("id", id);
   }
 
-  const draftFor = (dayId: string) => exDraft[dayId] ?? { name: "", muscle: "", sets: "3", reps: "" };
+  const draftFor = (dayId: string): ExDraft => exDraft[dayId] ?? { name: "", muscle: "", sets: "3", reps: "", trackingType: "strength" };
+
+  const typeLabel = (t: string) => t === "timed" ? "Tiempo" : t === "bodyweight" ? "BW" : "Fuerza";
 
   return (
     <>
@@ -197,24 +223,40 @@ export function RoutineEditor({
                     </div>
 
                     <div className="re-ex-list">
-                      {dayEx.map((e) => (
-                        <div key={e.id} className="re-ex-row">
-                          <input className="input" style={{ flex: 1 }} value={e.name}
-                            onChange={(ev) => updateExLocal(e.id, { name: ev.target.value })} onBlur={() => persistEx(e.id)} />
-                          <select className="input" style={{ width: 110 }} value={e.muscle_group ?? ""}
-                            onChange={(ev) => { updateExLocal(e.id, { muscle_group: ev.target.value || null }); }}
-                            onBlur={() => persistEx(e.id)}>
-                            <option value="">—</option>
-                            {MUSCLES.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
-                          </select>
-                          <input className="input" style={{ width: 44 }} value={e.target_sets}
-                            onChange={(ev) => updateExLocal(e.id, { target_sets: parseInt(ev.target.value) || 0 })} onBlur={() => persistEx(e.id)} />
-                          <span className="gym-set-x">×</span>
-                          <input className="input" style={{ width: 64 }} placeholder="reps" value={e.target_reps ?? ""}
-                            onChange={(ev) => updateExLocal(e.id, { target_reps: ev.target.value })} onBlur={() => persistEx(e.id)} />
-                          <button className="gym-set-del" onClick={() => deleteExercise(e.id)}><Trash2 size={12} /></button>
-                        </div>
-                      ))}
+                      {dayEx.map((e) => {
+                        const isTimed = e.tracking_type === "timed";
+                        return (
+                          <div key={e.id} className="re-ex-row">
+                            <input className="input" style={{ flex: 1 }} value={e.name}
+                              onChange={(ev) => updateExLocal(e.id, { name: ev.target.value })} onBlur={() => persistEx(e.id)} />
+                            <select className="input" style={{ width: 110 }} value={e.muscle_group ?? ""}
+                              onChange={(ev) => { updateExLocal(e.id, { muscle_group: ev.target.value || null }); }}
+                              onBlur={() => persistEx(e.id)}>
+                              <option value="">—</option>
+                              {MUSCLES.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+                            </select>
+                            <select className="input" style={{ width: 80, fontSize: 11 }} value={e.tracking_type}
+                              onChange={(ev) => { updateExLocal(e.id, { tracking_type: ev.target.value }); }}
+                              onBlur={() => persistEx(e.id)}>
+                              <option value="strength">Fuerza</option>
+                              <option value="timed">Tiempo</option>
+                              <option value="bodyweight">BW</option>
+                            </select>
+                            <input className="input" style={{ width: 44 }} value={e.target_sets}
+                              onChange={(ev) => updateExLocal(e.id, { target_sets: parseInt(ev.target.value) || 0 })} onBlur={() => persistEx(e.id)} />
+                            <span className="gym-set-x" style={{ fontSize: 11, color: "var(--mute)" }}>{isTimed ? "seg" : "×"}</span>
+                            <input className="input" style={{ width: 64 }}
+                              placeholder={isTimed ? "45" : "8-12"}
+                              value={isTimed ? (e.target_duration_seconds?.toString() ?? "") : (e.target_reps ?? "")}
+                              onChange={(ev) => updateExLocal(e.id, isTimed
+                                ? { target_duration_seconds: parseInt(ev.target.value) || 0 }
+                                : { target_reps: ev.target.value }
+                              )}
+                              onBlur={() => persistEx(e.id)} />
+                            <button className="gym-set-del" onClick={() => deleteExercise(e.id)}><Trash2 size={12} /></button>
+                          </div>
+                        );
+                      })}
                       <div className="re-ex-add">
                         <input className="input" style={{ flex: 1 }} placeholder="Nuevo ejercicio" value={draft.name}
                           onChange={(e) => setExDraft((p) => ({ ...p, [d.id]: { ...draft, name: e.target.value } }))}
@@ -224,10 +266,18 @@ export function RoutineEditor({
                           <option value="">Músculo…</option>
                           {MUSCLES.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
                         </select>
+                        <select className="input" style={{ width: 80, fontSize: 11 }} value={draft.trackingType}
+                          onChange={(e) => setExDraft((p) => ({ ...p, [d.id]: { ...draft, trackingType: e.target.value } }))}>
+                          <option value="strength">Fuerza</option>
+                          <option value="timed">Tiempo</option>
+                          <option value="bodyweight">BW</option>
+                        </select>
                         <input className="input" style={{ width: 44 }} placeholder="3" value={draft.sets}
                           onChange={(e) => setExDraft((p) => ({ ...p, [d.id]: { ...draft, sets: e.target.value } }))} />
-                        <span className="gym-set-x">×</span>
-                        <input className="input" style={{ width: 64 }} placeholder="8-12" value={draft.reps}
+                        <span className="gym-set-x" style={{ fontSize: 11, color: "var(--mute)" }}>{draft.trackingType === "timed" ? "seg" : "×"}</span>
+                        <input className="input" style={{ width: 64 }}
+                          placeholder={draft.trackingType === "timed" ? "45" : "8-12"}
+                          value={draft.reps}
                           onChange={(e) => setExDraft((p) => ({ ...p, [d.id]: { ...draft, reps: e.target.value } }))} />
                         <button className="btn btn-ghost btn-sm" onClick={() => addExercise(d.id)}><Plus size={13} /></button>
                       </div>

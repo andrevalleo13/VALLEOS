@@ -10,8 +10,10 @@ import type { WorkoutRoutine, WorkoutDay, WorkoutExercise } from "@/lib/supabase
 const num = (s: string) => (s.trim() && isFinite(parseFloat(s)) ? parseFloat(s) : null);
 const int = (s: string) => (s.trim() && isFinite(parseInt(s)) ? parseInt(s) : null);
 
-type SetRow = { weight: string; reps: string };
-type Entry = { exerciseId: string | null; name: string; muscle: string | null; sets: SetRow[] };
+type SetRow = { weight: string; reps: string; duration: string };
+type Entry = { exerciseId: string | null; name: string; muscle: string | null; trackingType: string; sets: SetRow[] };
+
+const emptySet = (): SetRow => ({ weight: "", reps: "", duration: "" });
 
 export function LogSession({
   routines, days, exercises, suggestedDayId,
@@ -46,7 +48,8 @@ export function LogSession({
         exerciseId: e.id,
         name: e.name,
         muscle: e.muscle_group,
-        sets: Array.from({ length: Math.max(1, e.target_sets) }, () => ({ weight: "", reps: "" })),
+        trackingType: (e as any).tracking_type ?? "strength",
+        sets: Array.from({ length: Math.max(1, e.target_sets) }, emptySet),
       }));
   }
 
@@ -66,7 +69,7 @@ export function LogSession({
     setEntries((prev) => {
       const next = prev.map((e) => ({ ...e, sets: e.sets.map((s) => ({ ...s })) }));
       const last = next[ei].sets[next[ei].sets.length - 1];
-      next[ei].sets.push({ weight: last?.weight ?? "", reps: last?.reps ?? "" });
+      next[ei].sets.push({ weight: last?.weight ?? "", reps: last?.reps ?? "", duration: last?.duration ?? "" });
       return next;
     });
   }
@@ -74,21 +77,22 @@ export function LogSession({
     setEntries((prev) => {
       const next = prev.map((e) => ({ ...e, sets: e.sets.map((s) => ({ ...s })) }));
       next[ei].sets.splice(si, 1);
-      if (next[ei].sets.length === 0) next[ei].sets.push({ weight: "", reps: "" });
+      if (next[ei].sets.length === 0) next[ei].sets.push(emptySet());
       return next;
     });
   }
   function addCustom() {
-    setEntries((prev) => [...prev, { exerciseId: null, name: "", muscle: null, sets: [{ weight: "", reps: "" }] }]);
+    setEntries((prev) => [...prev, { exerciseId: null, name: "", muscle: null, trackingType: "strength", sets: [emptySet()] }]);
   }
   function removeEntry(ei: number) {
     setEntries((prev) => prev.filter((_, i) => i !== ei));
   }
-  function setEntryField(ei: number, field: "name" | "muscle", val: string) {
+  function setEntryField(ei: number, field: "name" | "muscle" | "trackingType", val: string) {
     setEntries((prev) => {
       const next = prev.map((e) => ({ ...e }));
       if (field === "name") next[ei].name = val;
-      else next[ei].muscle = val || null;
+      else if (field === "muscle") next[ei].muscle = val || null;
+      else next[ei].trackingType = val;
       return next;
     });
   }
@@ -120,7 +124,14 @@ export function LogSession({
       for (const s of e.sets) {
         const w = num(s.weight);
         const r = int(s.reps);
-        if (w == null && r == null) continue;
+        const d = int(s.duration);
+
+        if (e.trackingType === "timed") {
+          if (d == null) continue;
+        } else {
+          if (w == null && r == null) continue;
+        }
+
         setNum++;
         rows.push({
           session_id: sess.id,
@@ -128,17 +139,17 @@ export function LogSession({
           exercise_name: name,
           muscle_group: e.muscle,
           set_number: setNum,
-          weight_kg: w,
-          reps: r,
+          weight_kg: e.trackingType === "strength" ? w : null,
+          reps: e.trackingType !== "timed" ? r : null,
+          duration_seconds: e.trackingType === "timed" ? d : null,
           rpe: null,
-        });
+        } as any);
       }
     }
     if (rows.length) await supabase.from("workout_sets").insert(rows);
 
     setSaving(false);
     setOpen(false);
-    // reset
     setDuration(""); setBodyweight(""); setNotes("");
     setEntries(buildEntries(dayId));
     router.refresh();
@@ -171,13 +182,25 @@ export function LogSession({
               <div key={ei} className="gym-log-ex">
                 <div className="gym-log-ex-head">
                   {e.exerciseId ? (
-                    <span className="gym-log-ex-name">{e.name}</span>
+                    <>
+                      <span className="gym-log-ex-name">{e.name}</span>
+                      {e.trackingType !== "strength" && (
+                        <span style={{ fontSize: 10, color: "var(--gold)", fontFamily: "var(--mono)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                          {e.trackingType === "timed" ? "⏱ tiempo" : "bw"}
+                        </span>
+                      )}
+                    </>
                   ) : (
                     <>
                       <input className="input" style={{ flex: 1 }} placeholder="Ejercicio" value={e.name} onChange={(ev) => setEntryField(ei, "name", ev.target.value)} />
                       <select className="input" style={{ width: 130 }} value={e.muscle ?? ""} onChange={(ev) => setEntryField(ei, "muscle", ev.target.value)}>
                         <option value="">Músculo…</option>
                         {MUSCLES.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+                      </select>
+                      <select className="input" style={{ width: 80, fontSize: 11 }} value={e.trackingType} onChange={(ev) => setEntryField(ei, "trackingType", ev.target.value)}>
+                        <option value="strength">Fuerza</option>
+                        <option value="timed">Tiempo</option>
+                        <option value="bodyweight">BW</option>
                       </select>
                     </>
                   )}
@@ -187,9 +210,40 @@ export function LogSession({
                   {e.sets.map((s, si) => (
                     <div key={si} className="gym-set-row">
                       <span className="gym-set-num">{si + 1}</span>
-                      <input className="input gym-set-input" inputMode="decimal" placeholder="kg" value={s.weight} onChange={(ev) => setCell(ei, si, "weight", ev.target.value)} />
-                      <span className="gym-set-x">×</span>
-                      <input className="input gym-set-input" inputMode="numeric" placeholder="reps" value={s.reps} onChange={(ev) => setCell(ei, si, "reps", ev.target.value)} />
+                      {e.trackingType === "timed" ? (
+                        <>
+                          <input
+                            className="input gym-set-input"
+                            inputMode="numeric"
+                            placeholder="seg"
+                            value={s.duration}
+                            onChange={(ev) => setCell(ei, si, "duration", ev.target.value)}
+                          />
+                          <span className="gym-set-x" style={{ fontSize: 11, color: "var(--mute)" }}>seg</span>
+                        </>
+                      ) : (
+                        <>
+                          {e.trackingType === "strength" && (
+                            <>
+                              <input
+                                className="input gym-set-input"
+                                inputMode="decimal"
+                                placeholder="kg"
+                                value={s.weight}
+                                onChange={(ev) => setCell(ei, si, "weight", ev.target.value)}
+                              />
+                              <span className="gym-set-x">×</span>
+                            </>
+                          )}
+                          <input
+                            className="input gym-set-input"
+                            inputMode="numeric"
+                            placeholder="reps"
+                            value={s.reps}
+                            onChange={(ev) => setCell(ei, si, "reps", ev.target.value)}
+                          />
+                        </>
+                      )}
                       <button className="gym-set-del" onClick={() => removeSet(ei, si)} title="Quitar serie"><X size={12} /></button>
                     </div>
                   ))}

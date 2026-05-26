@@ -46,10 +46,12 @@ CSS grid: `grid-template-columns: var(--sidebar-w) 1fr` · `grid-template-rows: 
 | `components/shell/NotifCenter.tsx` | Centro de notificaciones (la campana, antes muerta). Ver sección Notificaciones |
 | `components/shell/Sidebar.tsx` | Nav lateral: brand serif `VALLE·`, search, secciones colapsables, footer con avatar |
 | `components/shell/LockScreen.tsx` | PIN 4 dígitos (SHA-256 → localStorage) + WebAuthn biométrico |
+| `components/shell/BootSequence.tsx` | Animación de arranque (~1.5s): el orbe se forma desde un punto + anillos expandiéndose + wordmark `VALLE·`, luego fade-out y revela el LockScreen. Se renderiza **encima** del LockScreen en `layout.tsx`. Una vez por sesión (`sessionStorage valleos-booted`). Dispara `play("boot")`. Clases `.boot-*` |
+| `components/shell/SoundLayer.tsx` | Capa de sonido (sin UI): sincroniza `ajustes.sounds && !focusMode` → `setSoundsEnabled()` y reproduce `play("click")` al cambiar de ruta (`usePathname`). Ver sección Sonidos |
 | `components/shell/CmdK.tsx` | Paleta de comandos (⌘K) — usa `cmdk` |
 | `components/shell/CaptureModal.tsx` | Modal de captura rápida (⌘J) |
 | `components/shell/CierreFlow.tsx` | Flujo de cierre nocturno (⌘.) |
-| `components/shell/AjustesDrawer.tsx` | Drawer de ajustes — temas base, personalización de colores (acento/fondo/texto), fuente, bordes. Incluye sección "Memoria de Claude" con botón de sync |
+| `components/shell/AjustesDrawer.tsx` | Drawer de ajustes — temas base, personalización de colores (acento/fondo/texto), fuente, bordes, toggle de **Sonidos espaciales**. Incluye sección "Memoria de Claude" con botón de sync |
 | `components/shell/AmbientBG.tsx` | Fondo: un solo `<div className="ambient">` con gradientes radiales CSS + grano (`::after`), animado con `ambient-drift`. Sin blobs |
 | `components/shell/FocusBanner.tsx` | Banner de modo foco (barra dorada) |
 | `components/shell/OrbFloating.tsx` | Botón flotante de Shadow — renderiza `<Orb>` (orb-jarvis) |
@@ -61,6 +63,12 @@ CSS grid: `grid-template-columns: var(--sidebar-w) 1fr` · `grid-template-rows: 
 - `⌘K` → CmdK (búsqueda global)
 - `⌘J` → CaptureModal (captura rápida)
 - `⌘.` → CierreFlow (cierre nocturno)
+
+### Sonidos espaciales — `lib/sounds.ts`
+Motor Web Audio sin dependencias (singleton `AudioContext`, lazy init, se reanuda en el primer gesto del usuario). API: `play(name)` y `setSoundsEnabled(bool)`. Sonidos: `click` (metálico, al cambiar de página), `think` (ping cuando Shadow procesa), `bass` (drop en evento exitoso), `alert` (error), `success`, `ping`, `boot` (sweep ascendente del arranque — ignora el flag de silencio). Cada sonido es uno o más osciladores con envolvente vía `tone()`.
+- **Control**: `ajustes.sounds` (Zustand persist, default `true`). [`SoundLayer`](components/shell/SoundLayer.tsx) hace `setSoundsEnabled(sounds && !focusMode)` — el modo **Silencio** (focusMode) los apaga.
+- **Wiring**: click por navegación → `SoundLayer`; `think`/`bass`/`alert` → `VoiceOrb` (en `send()` y el handler de `mood`); `boot` → `BootSequence`. El `chime` de wake-word de `VoiceOrb` es su propio oscilador (no pasa por el motor).
+- **Nota navegador**: el audio no suena en la primerísima carga sin gesto del usuario (autoplay policy); arranca tras el primer tap (ej. el PIN del LockScreen).
 
 ### Sidebar — numeración de rutas
 ```
@@ -170,6 +178,7 @@ Todos los `input[type="date"]`, `input[type="datetime-local"]`, etc. con clase `
 - **Análisis financiero**: `app/api/shadow/finanzas/route.ts` (POST) — analiza patrimonio, distribución del gasto, tendencia vs. mes previo y próximos pagos; devuelve 3 bloques (**Lectura** · **En qué se va el dinero** · **Movimientos**). Cachea en `shadow_cache` key `finanzas:{YYYY-MM}`. Se dispara desde el botón en Finanzas
 - **Análisis de negocio (Flouvia)**: `app/api/shadow/flouvia/route.ts` (POST) — analiza pipeline, MRR, conversión propuesta→activo, proyectos activos e ingresos de 6 meses; devuelve 3 bloques (**Lectura** · **Oportunidades** [upsell/cowork/sinergias] · **Movimientos**). Cachea en `shadow_cache` key `flouvia:{YYYY-MM}`. Se dispara desde el botón en Flouvia
 - **Análisis de salud**: `app/api/shadow/salud/route.ts` (POST) — analiza peso/tendencia, sueño (promedios + deuda), ánimo/energía, actividad y correlaciones; devuelve 3 bloques (**Lectura** · **Patrones** · **Movimientos**). Cachea en `shadow_cache` key `salud:{YYYY-MM}`. Se dispara desde el botón en Salud
+- **Patrones predictivos**: `app/api/shadow/patrones/route.ts` (POST) — analiza `time_logs` por día×hora y devuelve JSON de patrones con bloqueos de calendario sugeridos. Cachea en `shadow_cache` key `patrones:{lunesISO}`. Se dispara desde Tiempo (ver sección Tiempo)
 
 ---
 
@@ -237,6 +246,14 @@ Exporta los datos de Valle OS a los archivos de memoria de Claude para que tenga
 
 ---
 
+## Brain — Segundo cerebro (módulo 04)
+- **Ruta**: `app/(os)/brain/page.tsx` (client) — captura rápida de notas + búsqueda + tab Vault (Obsidian). Cada nota deriva su título de la primera línea no vacía; si hay Obsidian conectado, empuja un `.md` al vault (fire-and-forget)
+- **Modelo de datos**: `brain_notes` — `content`, `source`, `title`, `obsidian_path`, `tags text[]`, `related_ids uuid[]`, `embedding vector(1536)` (scaffolding sin usar). Migración aditiva: `supabase/brain.sql` (agrega `tags`, `related_ids` + índice GIN; también `title`/`obsidian_path` por si faltan)
+- **Auto-tagging semántico**: al guardar una nota, el cliente llama `app/api/brain/tag/route.ts` (POST `{id}`, no bloquea la captura). Claude (`claude-sonnet-4-6`) recibe la nota + un catálogo de hasta 50 notas existentes y devuelve JSON `{tags:[2-4], related:[≤3 ids]}`; la ruta valida que los `related` existan y persiste `tags`/`related_ids`. La UI muestra las tags como chips clickeables (`#tag` → setea búsqueda), las relacionadas como chips (→ búsqueda por su título), y "Shadow etiquetando…" mientras corre. La búsqueda también filtra por tags. Clases `.bn-*`
+- **Nota sobre embeddings**: el schema tiene `embedding vector(1536)` + RPC `search_brain_notes` pero **no se popula** (no hay proveedor de embeddings; solo `ANTHROPIC_API_KEY`). El enlazado lo hace Claude, no similitud vectorial
+
+---
+
 ## Lectura — Lista de lectura (módulo 12)
 - **Ruta**: `app/(os)/lectura/page.tsx` (server: carga `reading_items` excluyendo archivados) — libros y contenido se separan dentro de cada sección (Leyendo / Por leer / Completados)
 - **Modelo de datos**: `reading_items` — `type` (`article`|`video`|`podcast`|`paper`|`book`|`other`), `status` (`pending`|`reading`|`done`|`archived`), `title`, `url`, `source` (autor), `summary`, `notes`, `estimated_minutes` (para no-libros), `cover_url` (URL imagen portada, libros), `total_pages` / `current_page` (progreso, libros), `completed_at`. Migración aditiva: `supabase/lectura.sql`
@@ -273,8 +290,9 @@ Exporta los datos de Valle OS a los archivos de memoria de Claude para que tenga
   - **Barras por cliente** (`ClientHours`): tiempo 30d ligado a `client_id → flouvia_clients`, color estable por índice
   - **Ritmo del día** (`DayRhythm`): 24 barras, hora pico en dorado, tooltip hora + duración
   - Plantilla del día · Sesiones recientes (dot de color por categoría + nombre de cliente si tiene `client_id`)
+- **Patrones predictivos** (`Patrones.tsx`, isla cliente bajo los KPIs): `app/api/shadow/patrones/route.ts` (POST) analiza `time_logs` de 90d agregando minutos por **día de la semana × categoría** + hora modal de cada celda; Claude devuelve JSON `{patterns:[{insight, suggestion, block?:{title, weekday 0-6, start, end}}]}` (máx 3). Cachea el JSON en `shadow_cache` key `patrones:{lunesISO}` (la página lo parsea y lo pasa como prop). Cada patrón con `block` muestra el slot (`Mié · 14:00–16:00`) y un botón **"Bloquear en calendario"** que hace POST a `/api/calendar` calculando la próxima ocurrencia del weekday con offset fijo CDMX `-06:00`. weekday usa convención JS (0=Domingo). `weekday=0` significa "hoy" → agenda la próxima semana
 - **`LogTime.tsx`**: recibe `clients[]` del servidor; muestra selector de cliente cuando `category === "Flouvia"`. `client_id` se guarda en el insert
-- **Clases CSS**: `.tm-kpis` (grid 5 col responsive) · `.tm-grid-2` (grid 2 col) · `.tm-hm-*` (heatmap, key, cells con `data-lvl`) · `.tm-week-*` (barras semanales, `.current` en dorado) · `.tm-client-*` (barras por cliente con color inline) · `.tm-rhythm` / `.tm-rhythm-bar.peak` / `.tm-rhythm-axis` · `.tm-dot`
+- **Clases CSS**: `.tm-kpis` (grid 5 col responsive) · `.tm-grid-2` (grid 2 col) · `.tm-hm-*` (heatmap, key, cells con `data-lvl`) · `.tm-week-*` (barras semanales, `.current` en dorado) · `.tm-client-*` (barras por cliente con color inline) · `.tm-rhythm` / `.tm-rhythm-bar.peak` / `.tm-rhythm-axis` · `.tm-dot` · `.pt-*` (patrones: card, item, insight, suggestion, block, slot)
 
 ---
 
@@ -301,7 +319,7 @@ const data = result.data as unknown as MiTipo[];
 
 Tablas principales: `user_preferences`, `habits`, `habit_completions`, `financial_entries`, `bank_accounts`, `credit_cards`, `investments`, `flouvia_clients`, `flouvia_projects`, `shadow_conversations`, `shadow_messages`, `shadow_memory`, `shadow_cache`, `notifications`, `brain_notes`, `goals` (incluye `started_at`), `goal_milestones`, `goal_habits`, `capital_goals`, `health_entries`, `weight_logs`, `reading_items`, `custom_pages`, `time_logs`, `academic_courses` (incluye `absences`/`max_absences`), `grade_components`, `class_schedule`, `assignments`, `semesters`, `priorities`, `daily_notes`, `workout_routines`, `workout_days`, `workout_exercises`, `workout_sessions`, `workout_sets`.
 
-Schema completo en `supabase/schema.sql` — correr en Supabase SQL Editor para crear/recrear tablas. Migraciones aditivas (sin borrar datos): `supabase/gym.sql`, `supabase/academia.sql` (faltas + `grade_components`), `supabase/finanzas.sql` (`financial_entries.account_id` + `credit_cards.statement_balance` + índices), `supabase/lectura.sql` (`reading_items.cover_url` + `total_pages` + `current_page`), `supabase/metas.sql` (`goal_habits` + `goals.started_at` + check de `progress_type` ampliado a `'percentage'`), `supabase/tiempo.sql` (`time_logs.client_id → flouvia_clients` + índices), `supabase/salud.sql` (tabla `weight_logs` + columnas `steps`/`resting_hr`/`active_calories`/`bedtime`/`wake_time`/`source` en `health_entries`).
+Schema completo en `supabase/schema.sql` — correr en Supabase SQL Editor para crear/recrear tablas. Migraciones aditivas (sin borrar datos): `supabase/gym.sql`, `supabase/academia.sql` (faltas + `grade_components`), `supabase/finanzas.sql` (`financial_entries.account_id` + `credit_cards.statement_balance` + índices), `supabase/lectura.sql` (`reading_items.cover_url` + `total_pages` + `current_page`), `supabase/metas.sql` (`goal_habits` + `goals.started_at` + check de `progress_type` ampliado a `'percentage'`), `supabase/tiempo.sql` (`time_logs.client_id → flouvia_clients` + índices), `supabase/salud.sql` (tabla `weight_logs` + columnas `steps`/`resting_hr`/`active_calories`/`bedtime`/`wake_time`/`source` en `health_entries`), `supabase/brain.sql` (`brain_notes.tags` + `related_ids` + índice GIN — **correr para que funcione el auto-tagging**).
 
 **Cambios de tipo aditivos en `types.ts`**: `health_entries.Insert` es `Partial<...> & { date: string }` (las columnas opcionales son nullable — upserts parciales son válidos sin cast). `time_logs.Row` incluye `client_id: string | null`.
 

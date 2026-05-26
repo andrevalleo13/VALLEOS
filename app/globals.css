@@ -3720,3 +3720,107 @@ body {
 }
 .sl-rating-dot:hover { border-color: var(--gold); color: var(--bone); }
 .sl-rating-dot.on { background: var(--gold); border-color: var(--gold); color: var(--bg-deep); }
+
+/* ── Boot sequence (Iron Man) ──────────────────────────────────────────── */
+.boot {
+  position: fixed; inset: 0; z-index: 10001;
+  background: var(--bg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 30px;
+  opacity: 1; transition: opacity 0.5s var(--ease);
+}
+.boot-closing { opacity: 0; pointer-events: none; }
+.boot-stage {
+  position: relative; width: 140px; height: 140px;
+  display: flex; align-items: center; justify-content: center;
+}
+.boot-orb {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, var(--gold) 45%, var(--gold-2) 100%);
+  animation: boot-orb-form 1.5s var(--ease) forwards;
+}
+@keyframes boot-orb-form {
+  0%   { transform: scale(0); opacity: 0; box-shadow: 0 0 0 0 var(--gold-glow); }
+  28%  { opacity: 1; }
+  60%  { transform: scale(3.4); box-shadow: 0 0 40px 8px var(--gold-glow); }
+  100% { transform: scale(3); opacity: 1; box-shadow: 0 0 64px 16px var(--gold-glow); }
+}
+.boot-spark {
+  position: absolute; width: 4px; height: 4px; border-radius: 50%;
+  background: #fff; box-shadow: 0 0 30px 10px rgba(255,255,255,0.85);
+  animation: boot-spark 0.6s ease-out forwards;
+}
+@keyframes boot-spark {
+  0%   { transform: scale(0.4); opacity: 0; }
+  18%  { opacity: 1; }
+  100% { transform: scale(6); opacity: 0; }
+}
+.boot-ring {
+  position: absolute; border-radius: 50%;
+  border: 1px solid var(--gold); width: 24px; height: 24px;
+  opacity: 0; animation: boot-ring 1.4s var(--ease) forwards;
+}
+@keyframes boot-ring {
+  0%   { transform: scale(0.3); opacity: 0; }
+  30%  { opacity: 0.65; }
+  100% { transform: scale(5.5); opacity: 0; }
+}
+.boot-ring-1 { animation-delay: 0.15s; }
+.boot-ring-2 { animation-delay: 0.4s; width: 42px; height: 42px; border-color: var(--gold-2); }
+.boot-ring-3 { animation-delay: 0.65s; width: 64px; height: 64px; }
+.boot-word {
+  font-family: var(--f-serif, "Instrument Serif", serif);
+  font-size: 34px; letter-spacing: 0.2em; color: var(--bone);
+  opacity: 0; animation: boot-word 0.9s var(--ease) 0.7s forwards;
+}
+.boot-word span { color: var(--gold); }
+@keyframes boot-word {
+  0%   { opacity: 0; letter-spacing: 0.5em; transform: translateY(4px); }
+  100% { opacity: 1; letter-spacing: 0.2em; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boot-orb, .boot-spark, .boot-ring, .boot-word { animation-duration: 0.01s; }
+}
+
+/* ── Brain: auto-tagging ───────────────────────────────────────────────── */
+.bn-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; align-items: center; }
+.bn-tag {
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: 0.02em;
+  color: var(--gold); background: var(--gold-glow);
+  border: 1px solid var(--glass-bd); border-radius: 999px;
+  padding: 3px 9px; cursor: pointer; transition: all 0.15s var(--ease);
+}
+.bn-tag:hover { background: var(--gold); color: var(--bg-deep); }
+.bn-tagging {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--f-mono); font-size: 10px; color: var(--mute);
+}
+.bn-related {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px;
+  color: var(--mute);
+}
+.bn-rel-chip {
+  font-size: 11px; color: var(--bone-dim);
+  background: var(--glass-bg); border: 1px solid var(--glass-bd);
+  border-radius: 8px; padding: 3px 8px; cursor: pointer;
+  max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  transition: all 0.15s var(--ease);
+}
+.bn-rel-chip:hover { border-color: var(--gold); color: var(--bone); }
+
+/* ── Tiempo: patrones predictivos ──────────────────────────────────────── */
+.pt-list { display: flex; flex-direction: column; gap: 12px; }
+.pt-item {
+  padding: 14px; border-radius: var(--radius-sm);
+  background: var(--glass-bg); border: 1px solid var(--glass-bd);
+}
+.pt-insight { font-size: 14px; color: var(--bone); line-height: 1.5; margin-bottom: 4px; }
+.pt-suggestion { font-size: 13px; color: var(--mute); line-height: 1.5; }
+.pt-block {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 12px; flex-wrap: wrap;
+}
+.pt-slot {
+  font-family: var(--f-mono); font-size: 12px; color: var(--gold);
+  background: var(--gold-glow); border-radius: 8px; padding: 4px 10px;
+}

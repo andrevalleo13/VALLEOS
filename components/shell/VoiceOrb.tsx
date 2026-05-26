@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Mic, MicOff, X, Send } from "lucide-react";
 import { Orb, type OrbState } from "@/components/Orb";
 import { callDaemon } from "@/lib/daemon";
+import { play } from "@/lib/sounds";
 
 /* ── Minimal Web Speech API typings ───────────────────────────────── */
 type SRResult = { isFinal: boolean; 0: { transcript: string } };
@@ -191,6 +192,7 @@ export function VoiceOrb() {
     setActions([]);
     setMood("");
     setPhaseBoth("thinking");
+    play("think");
 
     try {
       const res = await fetch("/api/shadow", {
@@ -259,7 +261,9 @@ export function VoiceOrb() {
               });
             });
           } else if (ev.type === "mood") {
-            setMood(ev.mood as "success" | "alert");
+            const m = ev.mood as "success" | "alert";
+            setMood(m);
+            play(m === "alert" ? "alert" : "bass");
           } else if (ev.type === "error") {
             setResponse((r) => r + `\n\n⚠ ${ev.message as string}`);
           }

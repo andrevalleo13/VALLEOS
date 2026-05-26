@@ -243,6 +243,20 @@ export function AjustesDrawer() {
             </div>
           </div>
 
+          {/* Sonidos */}
+          <div>
+            <p className="ajustes-section-label">Sonidos espaciales</p>
+            <button
+              className={`tag cursor-pointer ${(ajustes.sounds ?? true) ? "tag-gold" : ""}`}
+              onClick={() => setAjustes({ sounds: !(ajustes.sounds ?? true) })}
+            >
+              {(ajustes.sounds ?? true) ? "Activados ●" : "Silenciados ○"}
+            </button>
+            <p className="tick" style={{ marginTop: 8, color: "var(--mute)", lineHeight: 1.5 }}>
+              Clicks al navegar, pings cuando Shadow piensa y bass en eventos clave. El modo Silencio los apaga.
+            </p>
+          </div>
+
           <div className="divider" />
 
           {/* Memoria de Claude */}

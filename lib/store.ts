@@ -19,6 +19,7 @@ interface Ajustes {
   accentColor: string | null;
   sidebarCollapsed: boolean;
   customColors: Record<string, string>;
+  sounds: boolean;
 }
 
 interface AppState {
@@ -59,6 +60,7 @@ export const useAppStore = create<AppState>()(
         accentColor: null,
         sidebarCollapsed: false,
         customColors: {},
+        sounds: true,
       },
 
       setLocked: (v) => set({ locked: v }),

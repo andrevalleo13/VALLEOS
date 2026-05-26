@@ -3,6 +3,7 @@ import { catColor, clientColor, fmtHours } from "@/lib/tiempo/categories";
 import { ActivityHeatmap, WeeklyHours, CategoryDonut, ClientHours, DayRhythm } from "./TiempoCharts";
 import type { CatSlice, WeekBar, ClientSlice } from "./TiempoCharts";
 import { LogTime } from "./LogTime";
+import { Patrones, type Pattern } from "./Patrones";
 
 export const revalidate = 0;
 
@@ -29,11 +30,20 @@ export default async function TiempoPage() {
   const since = new Date(now);
   since.setDate(since.getDate() - 100);
 
-  const [{ data: blocks }, { data: logs }, { data: clients }] = await Promise.all([
+  const patronKey = `patrones:${mondayOf(todayKey)}`;
+  const [{ data: blocks }, { data: logs }, { data: clients }, { data: patronCache }] = await Promise.all([
     supabase.from("time_blocks").select("*").eq("active", true).order("sort_order"),
     supabase.from("time_logs").select("*").gte("started_at", since.toISOString()).order("started_at", { ascending: false }),
     supabase.from("flouvia_clients").select("id, name"),
+    supabase.from("shadow_cache").select("content, generated_at").eq("key", patronKey).maybeSingle(),
   ]);
+
+  let patrones: Pattern[] = [];
+  try {
+    if (patronCache?.content) patrones = JSON.parse(patronCache.content) as Pattern[];
+  } catch {
+    patrones = [];
+  }
 
   const allLogs = logs ?? [];
   const clientName = new Map((clients ?? []).map((c) => [c.id, c.name]));
@@ -144,6 +154,8 @@ export default async function TiempoPage() {
             </div>
           ))}
         </div>
+
+        <Patrones initial={patrones} generatedAt={patronCache?.generated_at ?? null} />
 
         <div className="mb-6">
           <ActivityHeatmap daily={daily} maxDaily={maxDaily} />

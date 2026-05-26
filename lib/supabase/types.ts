@@ -202,8 +202,8 @@ export interface Database {
 
       /* ── Brain ─────────────────────────────────────────── */
       brain_notes: {
-        Row: { id: string; content: string; source: string; title: string | null; obsidian_path: string | null; created_at: string };
-        Insert: { content: string; source: string; title?: string | null; obsidian_path?: string | null };
+        Row: { id: string; content: string; source: string; title: string | null; obsidian_path: string | null; tags: string[] | null; related_ids: string[] | null; created_at: string };
+        Insert: { content: string; source: string; title?: string | null; obsidian_path?: string | null; tags?: string[] | null; related_ids?: string[] | null };
         Update: Partial<Database["public"]["Tables"]["brain_notes"]["Insert"]>;
         Relationships: [];
       };
@@ -316,7 +316,7 @@ export interface Database {
         Relationships: [];
       };
       workout_exercises: {
-        Row: { id: string; day_id: string; name: string; muscle_group: string | null; target_sets: number; target_reps: string | null; sort_order: number; created_at: string };
+        Row: { id: string; day_id: string; name: string; muscle_group: string | null; target_sets: number; target_reps: string | null; tracking_type: string; target_duration_seconds: number | null; sort_order: number; created_at: string };
         Insert: Omit<Database["public"]["Tables"]["workout_exercises"]["Row"], "id" | "created_at">;
         Update: Partial<Database["public"]["Tables"]["workout_exercises"]["Insert"]>;
         Relationships: [];
@@ -328,7 +328,7 @@ export interface Database {
         Relationships: [];
       };
       workout_sets: {
-        Row: { id: string; session_id: string; exercise_id: string | null; exercise_name: string; muscle_group: string | null; set_number: number; weight_kg: number | null; reps: number | null; rpe: number | null; created_at: string };
+        Row: { id: string; session_id: string; exercise_id: string | null; exercise_name: string; muscle_group: string | null; set_number: number; weight_kg: number | null; reps: number | null; duration_seconds: number | null; rpe: number | null; created_at: string };
         Insert: Omit<Database["public"]["Tables"]["workout_sets"]["Row"], "id" | "created_at">;
         Update: Partial<Database["public"]["Tables"]["workout_sets"]["Insert"]>;
         Relationships: [];
