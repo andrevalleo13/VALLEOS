@@ -122,6 +122,8 @@ Todas las páginas usan este patrón:
 - `.ac-*` — dashboard de Academia (`PanamericanaClient.tsx`): card de materia expandible, esquema de calificación con barra de peso + input inline, badges de dificultad, stepper de faltas, grid de horario semanal
 - `.seg` / `.seg-btn` — control segmentado (toggle Semana/Mes)
 - `.modal-card-wide` — modal ancho (720px); `Modal` acepta prop `wide`. `.modal-body` ahora hace scroll (max-height 80vh)
+- `.mt-*` — Metas v2: tarjeta de meta, barra de progreso con marcador de ritmo, hitos, motor de hábitos
+- `.tm-*` — Tiempo (módulo 13): KPIs grid, heatmap 13w, barras semanales, donut categorías, barras por cliente, ritmo del día
 
 ### Color picker reutilizable
 `components/ColorPicker.tsx` — chips de presets (10 colores) + botón `+` con `<input type="color">` nativo para color libre. Props: `value: string`, `onChange: (hex) => void`, `presets?: string[]`, `size?: number`. Usar en cualquier lugar donde el usuario elija color hex.
@@ -152,11 +154,13 @@ Todos los `input[type="date"]`, `input[type="datetime-local"]`, etc. con clase `
 - **API**: `app/api/shadow/route.ts` — loop agéntico con **tool use** de Anthropic. Streaming **NDJSON** (un JSON por línea): eventos `{type:"conv"|"text"|"tool"|"tool_result"|"error"|"done"}`
 - **Modelo**: `claude-sonnet-4-6`
 - **Herramientas** (`lib/shadow/tools.ts` → `SHADOW_TOOLS` + `executeTool`): Shadow EJECUTA acciones reales en Supabase y Google Calendar. Cada una devuelve `{ok, summary}` que se muestra como chip en vivo y se manda como `tool_result` a Claude. Grupos:
-  - **Estado/notas**: `consultar_estado` (prioridades, hábitos, finanzas, gym, próximo examen y agenda 48h), `crear_nota`, `recordar` (memoria persistente)
+  - **Estado/notas**: `consultar_estado` (prioridades, hábitos, finanzas, gym, próximo examen, agenda 48h, salud y metas activas con próximo hito), `crear_nota`, `recordar` (memoria persistente)
   - **Prioridades/hábitos**: `agregar_prioridad`, `completar_prioridad`, `crear_habito`, `completar_habito`
   - **Finanzas**: `consultar_finanzas`, `registrar_finanza` (auto-categoriza)
   - **Gym**: `consultar_rutina`, `registrar_entrenamiento`
   - **Academia (Panamericana)**: `consultar_academia`, `agregar_componente`, `calificar_componente`, `registrar_falta`
+  - **Salud (bienestar)**: `consultar_salud` (peso + tendencia, promedios 7d con cambio, deuda de sueño, correlaciones sueño↔ánimo/energía), `registrar_salud` (sueño/ánimo/energía/pasos/agua/ejercicio del día), `registrar_peso` (peso/grasa/músculo — el último registro es el peso actual)
+  - **Metas (objetivos)**: `consultar_metas` (progreso, ritmo a-tiempo/atrasado, hitos pendientes y hábitos que sostienen cada meta), `crear_meta`, `actualizar_progreso_meta`, `agregar_hito`, `completar_hito`, `vincular_habito_meta`
   - **Calendario**: `crear_evento`, `consultar_eventos`, `editar_evento`, `eliminar_evento`
   - **Notificaciones**: `crear_notificacion` (empuja a la campana / centro de notificaciones)
 - **Memoria**: tabla `shadow_memory` → se inyecta en system prompt como `## Memoria persistente`. El tool `recordar` escribe aquí
@@ -165,6 +169,7 @@ Todos los `input[type="date"]`, `input[type="datetime-local"]`, etc. con clase `
 - **Proyección académica**: `app/api/shadow/academia/route.ts` (POST) — analiza materias/calificaciones/exámenes/faltas y genera panorama + materias en riesgo + plan de exámenes + foco. Cachea en `shadow_cache` key `academia:{YYYY-MM-DD}`. Se dispara desde el botón en Panamericana
 - **Análisis financiero**: `app/api/shadow/finanzas/route.ts` (POST) — analiza patrimonio, distribución del gasto, tendencia vs. mes previo y próximos pagos; devuelve 3 bloques (**Lectura** · **En qué se va el dinero** · **Movimientos**). Cachea en `shadow_cache` key `finanzas:{YYYY-MM}`. Se dispara desde el botón en Finanzas
 - **Análisis de negocio (Flouvia)**: `app/api/shadow/flouvia/route.ts` (POST) — analiza pipeline, MRR, conversión propuesta→activo, proyectos activos e ingresos de 6 meses; devuelve 3 bloques (**Lectura** · **Oportunidades** [upsell/cowork/sinergias] · **Movimientos**). Cachea en `shadow_cache` key `flouvia:{YYYY-MM}`. Se dispara desde el botón en Flouvia
+- **Análisis de salud**: `app/api/shadow/salud/route.ts` (POST) — analiza peso/tendencia, sueño (promedios + deuda), ánimo/energía, actividad y correlaciones; devuelve 3 bloques (**Lectura** · **Patrones** · **Movimientos**). Cachea en `shadow_cache` key `salud:{YYYY-MM}`. Se dispara desde el botón en Salud
 
 ---
 
@@ -180,7 +185,7 @@ Exporta los datos de Valle OS a los archivos de memoria de Claude para que tenga
 | Archivo | Contenido |
 |---|---|
 | `personal_habits.md` | Hábitos activos, días de schedule, completados/programados 30d, racha actual |
-| `goals_flouvia.md` | Metas con progreso %, hitos, clientes Flouvia con MRR y proyectos |
+| `goals_flouvia.md` | Metas con progreso %, hitos con fecha + estado, hábitos que sostienen cada meta, clientes Flouvia con MRR y proyectos |
 | `academia_data.md` | Materias activas, calificaciones, componentes, próximos exámenes con días restantes |
 | `gym_data.md` | Rutina Upper/Lower, ejercicios por día, sesiones recientes, PRs (90d) |
 | `finance_data.md` | Patrimonio neto, cuentas, tarjetas, inversiones, gastos del mes, distribución 30d |
@@ -243,6 +248,47 @@ Exporta los datos de Valle OS a los archivos de memoria de Claude para que tenga
 
 ---
 
+## Salud — Bienestar (módulo 10)
+- **Ruta**: `app/(os)/salud/page.tsx` (server: carga `health_entries` de 30 días, `weight_logs` de 180 días y análisis cacheado) → dashboard con islas cliente
+- **Modelo de datos**:
+  - `health_entries` (registro diario, `date` único): `sleep_hours`, `sleep_quality`, `bedtime`/`wake_time` (sueño detallado), `mood`/`energy` (1-5), `steps`, `resting_hr`, `active_calories`, `water_l`, `workout_minutes`/`workout_type`, `source` (`manual`/`shadow`/`apple_health`). El `weight_kg` legacy ya NO se escribe desde la UI
+  - `weight_logs` (peso como **serie propia**, `date` único): `weight_kg`, `body_fat_pct`, `muscle_kg`, `source`. André no se pesa a diario, así que el peso vive aquí y el último registro es su "peso actual". Migración aditiva: `supabase/salud.sql` (crea `weight_logs`, agrega columnas a `health_entries`)
+- **Cálculo** (`lib/salud/health.ts`): `weightStats()` (peso actual = último, delta del período, kg/sem, rango), `sleepDebt()` (deuda vs objetivo `SLEEP_TARGET` = 7.5h), `compareWindows()` (promedio 7d vs. 7d previos → delta), `correlate()`/`corrLabel()` (Pearson sueño↔ánimo y sueño↔energía), `sleepColor()` (verde ≥7.5h / dorado 6-7.5 / rojo <6)
+- **Dashboard**: header con 2 botones (`LogWeight` peso · `LogHealth` día) · card de **peso actual** (valor grande + Δ + grasa/músculo/rango) · KPIs 7d (sueño/ánimo/energía/pasos, cada uno con su delta vs. semana previa) · panel **análisis de Shadow** (`Analysis.tsx`) · **gráficas** (`SaludCharts.tsx`, SVG a mano): tendencia de peso (línea+área), sueño (barras 14d), ánimo vs. energía (líneas superpuestas) · card **"Tus patrones"** (correlaciones + deuda de sueño) · **heatmap de sueño** 30d · historial
+- **Islas**: `LogWeight.tsx` (registrar peso → `weight_logs`), `LogHealth.tsx` (registrar día → `health_entries`; deriva horas de sueño de acostado/despierto, usa `.sl-rating` 1-5), `SaludCharts.tsx` (gráficas), `Analysis.tsx` (panel de Shadow, reusa clases `.fin-analysis-*`)
+- **Apple Salud / Apple Fitness**: la PWA no lee HealthKit directo. Endpoint `app/api/health/ingest/route.ts` (POST, auth header `Authorization: Bearer <HEALTH_INGEST_SECRET>`) recibe JSON y hace upsert parcial a `health_entries` + `weight_logs` (`source: apple_health`). André configura un Atajo (Shortcuts) en su iPhone que lea Salud y haga el POST. Pendiente: crear el Atajo y definir `HEALTH_INGEST_SECRET`
+- **Conexión con Shadow**: análisis vía `app/api/shadow/salud/route.ts`; tools `consultar_salud`, `registrar_salud`, `registrar_peso`; `consultar_estado` incluye sueño prom 7d + peso. Clases CSS: `.sl-*`
+
+---
+
+## Tiempo — Tracker de tiempo (módulo 13)
+- **Ruta**: `app/(os)/tiempo/page.tsx` (server: carga `time_blocks` activos + `time_logs` últimos 100d + `flouvia_clients` para nombres de cliente) → `TiempoCharts.tsx` (client: todos los charts SVG/CSS)
+- **Modelo de datos**: `time_blocks` (plantilla del día: `start_time`, `label`, `active`, `sort_order`) · `time_logs` (sesión: `label`, `started_at`, `ended_at`, `duration_minutes` generado, `category`, `client_id → flouvia_clients`, `block_id`). Migración aditiva: `supabase/tiempo.sql` (agrega `client_id` + índices — correr en Supabase)
+- **Categorías**: `lib/tiempo/categories.ts` — 7 categorías (`Flouvia`, `Panamericana`, `Estudio`, `Deep work`, `Salud`, `Personal`, `Descanso`) con color e ícono. Helpers: `catColor()`, `catIcon()`, `clientColor(index)` (paleta estable para clientes Flouvia), `fmtHours(mins)` → `"1.5h"` / `"45m"` / `"—"`
+- **Dashboard**: server computa todos los datos (ventanas diaria/semanal/30d/90d en TZ `America/Mexico_City`), charts son client components en `TiempoCharts.tsx`
+  - **5 KPIs**: Hoy · Esta semana · Δ% vs semana previa (verde/rojo) · Promedio/día 30d · Racha activa (días consecutivos hacia atrás)
+  - **Heatmap** (`ActivityHeatmap`): 13 semanas estilo GitHub — 4 niveles de intensidad dorada, mes en tope de columna, hoy resaltado, semanas empiezan el lunes
+  - **Barras semanales** (`WeeklyHours`): últimas 10 semanas (lunes a lunes), semana actual en dorado
+  - **Donut categorías** (`CategoryDonut`): distribución 30d interactiva con leyenda — reusa `.fin-donut-wrap` de Finanzas
+  - **Barras por cliente** (`ClientHours`): tiempo 30d ligado a `client_id → flouvia_clients`, color estable por índice
+  - **Ritmo del día** (`DayRhythm`): 24 barras, hora pico en dorado, tooltip hora + duración
+  - Plantilla del día · Sesiones recientes (dot de color por categoría + nombre de cliente si tiene `client_id`)
+- **`LogTime.tsx`**: recibe `clients[]` del servidor; muestra selector de cliente cuando `category === "Flouvia"`. `client_id` se guarda en el insert
+- **Clases CSS**: `.tm-kpis` (grid 5 col responsive) · `.tm-grid-2` (grid 2 col) · `.tm-hm-*` (heatmap, key, cells con `data-lvl`) · `.tm-week-*` (barras semanales, `.current` en dorado) · `.tm-client-*` (barras por cliente con color inline) · `.tm-rhythm` / `.tm-rhythm-bar.peak` / `.tm-rhythm-axis` · `.tm-dot`
+
+---
+
+## Metas — Objetivos (módulo 07)
+- **Ruta**: `app/(os)/metas/page.tsx` (server: carga metas activas/pausadas + sus `goal_milestones`, `goal_habits`, hábitos activos y `habit_completions` de 30d; calcula adherencia 30d por hábito y la pasa a las tarjetas) → islas cliente que persisten vía Supabase + `router.refresh()`. Mantiene además la card de **metas de capital** (`capital_goals`, de Finanzas)
+- **Modelo de datos**: `goals` (`progress_type` `percentage`/`numeric`/`milestones`, `current_value`, `target_value`, `unit`, `target_date`, `started_at` [inicio del tracking], `category`, `status` active/paused/completed/archived, `pinned`) → `goal_milestones` (hitos: `title`, `done`, `done_at`, `due_date`, `sort_order`) · `goal_habits` (vínculo **qué hábitos sostienen qué meta**: PK `(goal_id, habit_id)`). Migración aditiva: `supabase/metas.sql` (crea `goal_habits`, agrega `goals.started_at`, amplía el check de `progress_type` para aceptar `'percentage'`)
+- **Cálculo** (`lib/metas/progress.ts`): `goalPct()` (% según tipo: hitos completados, valor/objetivo, o el % directo), `goalPace()` (**ritmo**: compara avance real vs. el esperado en la ventana `started_at → target_date` → `ahead`/`ontrack`/`behind`/`done`/`none` con etiqueta "A tiempo/Adelantado/Atrasado · faltan N días"), `milestoneState()` (`done`/`overdue`/`soon` ≤7d/`upcoming`/`nodate`). `lib/metas/categories.ts` — `GOAL_CATS` (valor+label+color) y `catColor()`/`catLabel()`
+- **Tarjeta** (`GoalCard.tsx`, client): header con ícono+categoría+estado · **barra de progreso estilo gym** (gradiente del color de categoría) con **marcador de ritmo** (línea que muestra dónde deberías ir) + etiqueta de ritmo coloreada · actualización inline del valor (no para tipo hitos) · **hitos en línea** ordenados por fecha, con color por estado (verde hecho / rojo vencido / dorado pronto), click para marcar · **motor**: filas de hábitos vinculados con barra de adherencia 30d
+- **Islas**: `AddGoal.tsx` (crear meta — elige tipo de progreso, hitos iniciales con fecha y chips para vincular hábitos), `GoalManage.tsx` (modal `wide`: editar todos los campos, gestionar hitos con fecha [diff insert/update/delete], vincular/desvincular hábitos, eliminar meta). `GoalCard.tsx` muestra y dispara acciones rápidas
+- **Clases CSS**: `.mt-goal`, `.mt-goal-head`, `.mt-goal-icon`, `.mt-gear`, `.mt-prog`, `.mt-track` (+ `.mt-track-fill`/`.mt-track-marker`), `.mt-pct`, `.mt-pace`, `.mt-section`, `.mt-hitos`/`.mt-hito` (`.done`/`.overdue`/`.soon`), `.mt-engine`/`.mt-engine-row`, `.mt-mng-*` (modal), `.mt-hab-pick`/`.mt-hab-chip`
+- **Conexión con Shadow**: tools `consultar_metas`, `crear_meta`, `actualizar_progreso_meta`, `agregar_hito`, `completar_hito`, `vincular_habito_meta` (`buildMetas` en `tools.ts`); `consultar_estado` incluye conteo de metas + próximo hito. El sync de memoria exporta hitos con fecha/estado y los hábitos que sostienen cada meta
+
+---
+
 ## Supabase — Tipos
 Archivo: `lib/supabase/types.ts`
 
@@ -253,9 +299,11 @@ Para joins anidados con `.select("*, otra_tabla(campo)")`, usar cast doble:
 const data = result.data as unknown as MiTipo[];
 ```
 
-Tablas principales: `user_preferences`, `habits`, `habit_completions`, `financial_entries`, `bank_accounts`, `credit_cards`, `investments`, `flouvia_clients`, `flouvia_projects`, `shadow_conversations`, `shadow_messages`, `shadow_memory`, `shadow_cache`, `notifications`, `brain_notes`, `goals`, `goal_milestones`, `capital_goals`, `health_entries`, `reading_items`, `custom_pages`, `time_logs`, `academic_courses` (incluye `absences`/`max_absences`), `grade_components`, `class_schedule`, `assignments`, `semesters`, `priorities`, `daily_notes`, `workout_routines`, `workout_days`, `workout_exercises`, `workout_sessions`, `workout_sets`.
+Tablas principales: `user_preferences`, `habits`, `habit_completions`, `financial_entries`, `bank_accounts`, `credit_cards`, `investments`, `flouvia_clients`, `flouvia_projects`, `shadow_conversations`, `shadow_messages`, `shadow_memory`, `shadow_cache`, `notifications`, `brain_notes`, `goals` (incluye `started_at`), `goal_milestones`, `goal_habits`, `capital_goals`, `health_entries`, `weight_logs`, `reading_items`, `custom_pages`, `time_logs`, `academic_courses` (incluye `absences`/`max_absences`), `grade_components`, `class_schedule`, `assignments`, `semesters`, `priorities`, `daily_notes`, `workout_routines`, `workout_days`, `workout_exercises`, `workout_sessions`, `workout_sets`.
 
-Schema completo en `supabase/schema.sql` — correr en Supabase SQL Editor para crear/recrear tablas. Migraciones aditivas (sin borrar datos): `supabase/gym.sql`, `supabase/academia.sql` (faltas + `grade_components`), `supabase/finanzas.sql` (`financial_entries.account_id` + `credit_cards.statement_balance` + índices), `supabase/lectura.sql` (`reading_items.cover_url` + `total_pages` + `current_page`).
+Schema completo en `supabase/schema.sql` — correr en Supabase SQL Editor para crear/recrear tablas. Migraciones aditivas (sin borrar datos): `supabase/gym.sql`, `supabase/academia.sql` (faltas + `grade_components`), `supabase/finanzas.sql` (`financial_entries.account_id` + `credit_cards.statement_balance` + índices), `supabase/lectura.sql` (`reading_items.cover_url` + `total_pages` + `current_page`), `supabase/metas.sql` (`goal_habits` + `goals.started_at` + check de `progress_type` ampliado a `'percentage'`), `supabase/tiempo.sql` (`time_logs.client_id → flouvia_clients` + índices), `supabase/salud.sql` (tabla `weight_logs` + columnas `steps`/`resting_hr`/`active_calories`/`bedtime`/`wake_time`/`source` en `health_entries`).
+
+**Cambios de tipo aditivos en `types.ts`**: `health_entries.Insert` es `Partial<...> & { date: string }` (las columnas opcionales son nullable — upserts parciales son válidos sin cast). `time_logs.Row` incluye `client_id: string | null`.
 
 ---
 
@@ -284,7 +332,7 @@ Schema completo en `supabase/schema.sql` — correr en Supabase SQL Editor para 
 ---
 
 ## Páginas — server shell + islas cliente
-Patrón: la página es **server component** (SSR, carga datos) y las acciones interactivas son **islas cliente** (`"use client"`) que escriben a Supabase y llaman `router.refresh()`. Ejemplos de islas: `finanzas/AddEntry`+`AddAccount`+`AddCard`, `flouvia/AddClient`, `metas/AddGoal`+`GoalProgress`, `salud/LogHealth`, `lectura/AddReading`+`BookCard`+`ContentCard`+`EditReading`, `tiempo/LogTime`, `panamericana/AddCourse`+`AddComponent`+`AddAssignment`+`AddClass`.
+Patrón: la página es **server component** (SSR, carga datos) y las acciones interactivas son **islas cliente** (`"use client"`) que escriben a Supabase y llaman `router.refresh()`. Ejemplos de islas: `finanzas/AddEntry`+`AddAccount`+`AddCard`, `flouvia/AddClient`, `metas/AddGoal`+`GoalCard`+`GoalManage`, `salud/LogWeight`+`LogHealth`+`SaludCharts`+`Analysis`, `lectura/AddReading`+`BookCard`+`ContentCard`+`EditReading`, `tiempo/LogTime`, `panamericana/AddCourse`+`AddComponent`+`AddAssignment`+`AddClass`.
 
 | Server (con islas cliente) | Client components completos |
 |---|---|
@@ -295,7 +343,9 @@ Patrón: la página es **server component** (SSR, carga datos) y las acciones in
 - **Hábitos v2**: tracker diario con check-off satisfactorio (anillo de progreso), calendario heatmap mensual (perfecto/parcial/fallado), stats de racha actual/mejor/% del mes/días perfectos, y strip de 30 días por hábito. Permite backfill clickeando días pasados del calendario
 - **Finanzas**: dashboard de dinero — agregar cuentas/tarjetas/movimientos, gráficas (distribución + tendencia), próximos pagos, análisis de Shadow (ver sección Finanzas arriba)
 - **Flouvia**: dashboard de negocio interactivo — KPIs + gráfica de ingresos de 6 meses, análisis de Shadow, kanban de clientes y proyectos editables inline, follow-ups (ver sección Flouvia arriba)
-- **Metas/Salud/Tiempo**: crear registros + acciones (progreso de metas)
+- **Metas**: dashboard de objetivos — progreso visual con marcador de ritmo (a tiempo/atrasado vs. fecha), hitos con fecha en línea de tiempo, motor de hábitos que sostienen cada meta, todo conectado a Shadow (ver sección Metas arriba)
+- **Tiempo**: dashboard de analytics — heatmap 13w, barras semanales 10w, donut por categoría, tiempo por cliente Flouvia, ritmo del día, racha activa (ver sección Tiempo arriba)
+- **Salud**: dashboard de bienestar — peso como serie propia (`weight_logs`, último = actual), registro diario de sueño/ánimo/energía/pasos, KPIs con delta vs. semana previa, gráficas (peso/sueño/ánimo-energía), correlaciones + deuda de sueño, heatmap de sueño, análisis de Shadow e ingesta de Apple Salud vía `app/api/health/ingest` (ver sección Salud arriba)
 - **Lectura**: libros con portada CSS + progreso de páginas inline (`BookCard`); artículos/videos/podcasts como cards compactas (`ContentCard`); editar y archivar desde `EditReading` (ver sección Lectura arriba)
 - **Gym**: dashboard interactivo de entrenamiento (ver sección Gym arriba)
 - **Panamericana**: dashboard académico interactivo — esquema de calificación por materia, calificar parciales inline, faltas, exámenes por dificultad + cuándo estudiar, horario y proyección de Shadow (ver sección Academia arriba)

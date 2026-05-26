@@ -10,7 +10,8 @@ import type { Habit } from "@/lib/supabase/types";
 const WEEKDAYS = ["D", "L", "M", "M", "J", "V", "S"];
 const RANGE = 140;
 
-const iso = (d: Date) => d.toISOString().split("T")[0];
+const iso = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const TODAY = iso(new Date());
 
 export default function HabitosPage() {

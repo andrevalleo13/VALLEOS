@@ -1,12 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
-import { greeting } from "@/lib/utils";
+import { greeting, todayISO } from "@/lib/utils";
 import { BriefClient } from "./BriefClient";
 
 export const revalidate = 0;
 
 export default async function BriefPage() {
   const supabase = await createClient();
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayISO();
 
   const [
     { data: prefs },

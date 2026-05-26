@@ -13,8 +13,19 @@ export function formatDate(date: Date | string, opts?: Intl.DateTimeFormatOption
   return new Intl.DateTimeFormat("es-MX", opts).format(new Date(date));
 }
 
-export function greeting() {
-  const h = new Date().getHours();
+export function todayISO(tz = "America/Mexico_City") {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+export function greeting(tz = "America/Mexico_City") {
+  const h = Number(
+    new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "2-digit", hourCycle: "h23" }).format(new Date())
+  );
   if (h < 12) return "Buenos días";
   if (h < 18) return "Buenas tardes";
   return "Buenas noches";

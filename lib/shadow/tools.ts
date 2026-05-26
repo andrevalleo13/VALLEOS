@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { google } from "googleapis";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, FinancialCategory } from "@/lib/supabase/types";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, todayISO } from "@/lib/utils";
 import { normalizeMuscle } from "@/lib/gym/muscles";
 import {
   computeCourseGrades,
@@ -441,7 +441,7 @@ export async function executeTool(
   convId: string
 ): Promise<ToolResult> {
   const input = (rawInput ?? {}) as Record<string, unknown>;
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayISO();
 
   try {
     switch (name) {
