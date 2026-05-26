@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { Target } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { formatCurrency } from "@/lib/utils";
 import { AddGoal } from "./AddGoal";
 import { GoalCard } from "./GoalCard";
@@ -119,10 +120,14 @@ export default async function MetasPage() {
 
         {/* Goals */}
         {typedGoals.length === 0 ? (
-          <div className="card text-center py-12">
-            <Target size={32} style={{ color: "var(--mute-2)", margin: "0 auto 12px" }} />
-            <p style={{ color: "var(--mute)", fontSize: 14, marginBottom: 16 }}>Sin metas configuradas</p>
-            <AddGoal label="Crear primera meta" habits={habitOptions} />
+          <div className="card">
+            <EmptyState
+              icon={Target}
+              title="Sin metas configuradas"
+              hint="Define tu primer objetivo y traza el camino con hitos y hábitos que lo sostengan."
+            >
+              <AddGoal label="Crear primera meta" habits={habitOptions} />
+            </EmptyState>
           </div>
         ) : (
           <div className="flex flex-col gap-4">

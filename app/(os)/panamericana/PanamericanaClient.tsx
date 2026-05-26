@@ -11,6 +11,7 @@ import { AddCourse } from "./AddCourse";
 import { AddComponent } from "./AddComponent";
 import { AddAssignment } from "./AddAssignment";
 import { AddClass } from "./AddClass";
+import { EmptyState } from "@/components/EmptyState";
 import type { AcademicCourse, Assignment, GradeComponent, ClassSchedule } from "@/lib/supabase/types";
 import {
   computeCourseGrades, neededForTarget, daysUntil, studyState, absenceRisk,
@@ -190,10 +191,14 @@ export function PanamericanaClient({ courses, components, assignments, schedule,
         </div>
 
         {courses.length === 0 ? (
-          <div className="card text-center py-12">
-            <GraduationCap size={32} style={{ color: "var(--mute-2)", margin: "0 auto 12px" }} />
-            <p style={{ color: "var(--mute)", fontSize: 14, marginBottom: 16 }}>Sin materias registradas</p>
-            <AddCourse variant="primary" label="Agregar materia" />
+          <div className="card">
+            <EmptyState
+              icon={GraduationCap}
+              title="Sin materias registradas"
+              hint="Agrega tus materias con su esquema de calificación para proyectar el semestre."
+            >
+              <AddCourse variant="primary" label="Agregar materia" />
+            </EmptyState>
           </div>
         ) : (
           <>

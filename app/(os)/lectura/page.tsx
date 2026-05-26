@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { BookOpen } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { AddReading } from "./AddReading";
 import { BookCard } from "./BookCard";
 import { ContentCard } from "./ContentCard";
@@ -55,13 +56,14 @@ export default async function LecturaPage() {
         </div>
 
         {all.length === 0 ? (
-          <div className="card" style={{ textAlign: "center", padding: "48px 24px" }}>
-            <BookOpen size={32} style={{ color: "var(--mute-2)", margin: "0 auto 12px" }} />
-            <p style={{ color: "var(--mute)", fontSize: 14 }}>Lista de lectura vacía</p>
-            <p className="tick" style={{ marginTop: 4, marginBottom: 16 }}>
-              Agrega libros, artículos, videos o podcasts
-            </p>
-            <AddReading label="Agregar primero" />
+          <div className="card">
+            <EmptyState
+              icon={BookOpen}
+              title="Lista de lectura vacía"
+              hint="Agrega libros, artículos, videos o podcasts para llevar tu progreso."
+            >
+              <AddReading label="Agregar primero" />
+            </EmptyState>
           </div>
         ) : (
           <>

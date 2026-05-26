@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Check, AlertCircle, Calendar, Pencil, Trash2 } from "lucide-react";
+import { Plus, Check, AlertCircle, Calendar, Pencil, Trash2, Users } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { createClient } from "@/lib/supabase/client";
 import { Modal, Field } from "@/components/Modal";
 import { AddClient } from "./AddClient";
@@ -319,9 +320,14 @@ export function FlouviaClient({ clients, projects, followups, invoices, analysis
 
       {/* Kanban */}
       {clients.length === 0 ? (
-        <div className="card" style={{ textAlign: "center", padding: "48px 24px" }}>
-          <p style={{ color: "var(--mute)", fontSize: 15, marginBottom: 16 }}>Sin clientes registrados.</p>
-          <AddClient variant="primary" label="Agregar primer cliente" />
+        <div className="card">
+          <EmptyState
+            icon={Users}
+            title="Sin clientes registrados"
+            hint="Agrega tu primer cliente para empezar a llevar el pipeline y el MRR."
+          >
+            <AddClient variant="primary" label="Agregar primer cliente" />
+          </EmptyState>
         </div>
       ) : (
         <>

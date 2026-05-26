@@ -61,9 +61,10 @@ export interface Database {
         Row: {
           id: string; category: FinancialCategory; amount: number;
           description: string | null; date: string; subcategory: string | null;
-          card_id: string | null; account_id: string | null; payment_method: string | null; created_at: string;
+          card_id: string | null; account_id: string | null; payment_method: string | null;
+          recurring_id: string | null; created_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["financial_entries"]["Row"], "id" | "created_at">;
+        Insert: Omit<Database["public"]["Tables"]["financial_entries"]["Row"], "id" | "created_at" | "recurring_id"> & { recurring_id?: string | null };
         Update: Partial<Database["public"]["Tables"]["financial_entries"]["Insert"]>;
         Relationships: [];
       };
@@ -194,9 +195,15 @@ export interface Database {
         Relationships: [];
       };
       notifications: {
-        Row: { id: string; title: string; body: string | null; severity: string; module: string | null; href: string | null; read: boolean; dismissed: boolean; created_at: string };
-        Insert: Omit<Database["public"]["Tables"]["notifications"]["Row"], "id" | "created_at">;
+        Row: { id: string; title: string; body: string | null; severity: string; module: string | null; href: string | null; read: boolean; dismissed: boolean; pushed: boolean; created_at: string };
+        Insert: Omit<Database["public"]["Tables"]["notifications"]["Row"], "id" | "created_at" | "pushed"> & { pushed?: boolean };
         Update: Partial<Database["public"]["Tables"]["notifications"]["Insert"]>;
+        Relationships: [];
+      };
+      push_subscriptions: {
+        Row: { endpoint: string; p256dh: string; auth: string; user_agent: string | null; created_at: string };
+        Insert: { endpoint: string; p256dh: string; auth: string; user_agent?: string | null };
+        Update: Partial<Database["public"]["Tables"]["push_subscriptions"]["Insert"]>;
         Relationships: [];
       };
 

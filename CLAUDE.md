@@ -48,9 +48,10 @@ CSS grid: `grid-template-columns: var(--sidebar-w) 1fr` · `grid-template-rows: 
 | `components/shell/LockScreen.tsx` | PIN 4 dígitos (SHA-256 → localStorage) + WebAuthn biométrico |
 | `components/shell/BootSequence.tsx` | Animación de arranque (~1.5s): el orbe se forma desde un punto + anillos expandiéndose + wordmark `VALLE·`, luego fade-out y revela el LockScreen. Se renderiza **encima** del LockScreen en `layout.tsx`. Una vez por sesión (`sessionStorage valleos-booted`). Dispara `play("boot")`. Clases `.boot-*` |
 | `components/shell/SoundLayer.tsx` | Capa de sonido (sin UI): sincroniza `ajustes.sounds && !focusMode` → `setSoundsEnabled()` y reproduce `play("click")` al cambiar de ruta (`usePathname`). Ver sección Sonidos |
+| `components/shell/PageTransition.tsx` | Wrapper cliente (`key={pathname}`) que re-dispara la animación `page-in` (clase `.page-transition`) en cada navegación. Envuelve `{children}` dentro de `<main className="shell-content">` en el layout |
 | `components/shell/CmdK.tsx` | Paleta de comandos (⌘K) — usa `cmdk` |
 | `components/shell/CaptureModal.tsx` | Modal de captura rápida (⌘J) — modo **Auto** (Shadow clasifica con Claude a nota/tarea/gasto/lectura), o manual (Nota/Tarea/Gasto). POST a `app/api/capture/route.ts` que clasifica con LLM e inserta en el módulo correcto (brain_notes, priorities, financial_entries, reading_items). Muestra card de confirmación con resumen e icono al guardar |
-| `components/shell/CierreFlow.tsx` | Flujo de cierre nocturno (⌘.) |
+| `components/shell/CierreFlow.tsx` | Flujo de cierre con 3 modos seleccionables: **Nocturno** (journaling diario: revisión/gratitud/wins/aprendizajes/intención), **Semanal** y **Mensual** (cierre cross-module: lista rankeada de "qué necesita tu atención" + veredicto de Shadow + roll-up de 6 módulos). Los modos semanal/mensual llaman `POST /api/shadow/review`. Veredicto cacheado, items siempre recomputados. Clases `.cl-*` |
 | `components/shell/AjustesDrawer.tsx` | Drawer de ajustes — temas base, personalización de colores (acento/fondo/texto), fuente, bordes, toggle de **Sonidos espaciales**. Incluye sección "Memoria de Claude" con botón de sync |
 | `components/shell/AmbientBG.tsx` | Fondo: un solo `<div className="ambient">` con gradientes radiales CSS + grano (`::after`), animado con `ambient-drift`. Sin blobs |
 | `components/shell/FocusBanner.tsx` | Banner de modo foco (barra dorada) |
@@ -58,11 +59,13 @@ CSS grid: `grid-template-columns: var(--sidebar-w) 1fr` · `grid-template-rows: 
 | `components/shell/ShadowOrb.tsx` | Presencia limpia de Shadow: orb grande + aura difuminada (idle dorado / thinking morado) |
 | `components/Orb.tsx` | Orb reutilizable estilo Jarvis (clase `.orb-jarvis`, `--orb-size`), estados `idle`/`thinking` |
 | `components/Modal.tsx` | Modal + `Field` reutilizables. Patrón de islas: modal → insert a Supabase → `router.refresh()` |
+| `components/EmptyState.tsx` | Estado vacío con carácter: ícono (Lucide) en caja + título + hint + CTA opcional como `children`. Funciona en server y client. Clases `.empty-state*`. Usado en finanzas, salud, tiempo, metas, lectura, hábitos, flouvia, brain, panamericana |
+| `components/Skeleton.tsx` | Esqueletos de carga: `<Skeleton w h r>` (bloque shimmer) y `<DashboardSkeleton>` (header + KPIs + charts). Reusa `@keyframes shimmer` + clase `.skeleton-block`. Importado por los `loading.tsx` de cada ruta SSR |
 
 ### Shortcuts del Topbar
 - `⌘K` → CmdK (búsqueda global)
 - `⌘J` → CaptureModal (captura rápida)
-- `⌘.` → CierreFlow (cierre nocturno)
+- `⌘.` → CierreFlow (cierre nocturno / semanal / mensual)
 
 ### Sonidos espaciales — `lib/sounds.ts`
 Motor Web Audio sin dependencias (singleton `AudioContext`, lazy init, se reanuda en el primer gesto del usuario). API: `play(name)` y `setSoundsEnabled(bool)`. Sonidos: `click` (metálico, al cambiar de página), `think` (ping cuando Shadow procesa), `bass` (drop en evento exitoso), `alert` (error), `success`, `ping`, `boot` (sweep ascendente del arranque — ignora el flag de silencio). Cada sonido es uno o más osciladores con envolvente vía `tone()`.
@@ -132,6 +135,9 @@ Todas las páginas usan este patrón:
 - `.modal-card-wide` — modal ancho (720px); `Modal` acepta prop `wide`. `.modal-body` ahora hace scroll (max-height 80vh)
 - `.mt-*` — Metas v2: tarjeta de meta, barra de progreso con marcador de ritmo, hitos, motor de hábitos
 - `.tm-*` — Tiempo (módulo 13): KPIs grid, heatmap 13w, barras semanales, donut categorías, barras por cliente, ritmo del día
+- `.empty-state` / `.empty-state-icon` / `.empty-state-title` / `.empty-state-hint` / `.empty-state-cta` — estado vacío con carácter (`components/EmptyState.tsx`)
+- `.skeleton-block` — bloque shimmer para skeletons de carga (reusa `@keyframes shimmer`); `<DashboardSkeleton>` lo usa vía `components/Skeleton.tsx`
+- `.page-transition` — wrapper de animación `page-in` (420ms blur+translate), re-disparado por `PageTransition` en cada navegación
 
 ### Color picker reutilizable
 `components/ColorPicker.tsx` — chips de presets (10 colores) + botón `+` con `<input type="color">` nativo para color libre. Props: `value: string`, `onChange: (hex) => void`, `presets?: string[]`, `size?: number`. Usar en cualquier lugar donde el usuario elija color hex.
@@ -179,6 +185,7 @@ Todos los `input[type="date"]`, `input[type="datetime-local"]`, etc. con clase `
 - **Análisis de negocio (Flouvia)**: `app/api/shadow/flouvia/route.ts` (POST) — analiza pipeline, MRR, conversión propuesta→activo, proyectos activos e ingresos de 6 meses; devuelve 3 bloques (**Lectura** · **Oportunidades** [upsell/cowork/sinergias] · **Movimientos**). Cachea en `shadow_cache` key `flouvia:{YYYY-MM}`. Se dispara desde el botón en Flouvia
 - **Análisis de salud**: `app/api/shadow/salud/route.ts` (POST) — analiza peso/tendencia, sueño (promedios + deuda), ánimo/energía, actividad y correlaciones; devuelve 3 bloques (**Lectura** · **Patrones** · **Movimientos**). Cachea en `shadow_cache` key `salud:{YYYY-MM}`. Se dispara desde el botón en Salud
 - **Patrones predictivos**: `app/api/shadow/patrones/route.ts` (POST) — analiza `time_logs` por día×hora y devuelve JSON de patrones con bloqueos de calendario sugeridos. Cachea en `shadow_cache` key `patrones:{lunesISO}`. Se dispara desde Tiempo (ver sección Tiempo)
+- **Cierre semanal/mensual**: `app/api/shadow/review/route.ts` (POST `{period:"week"|"month", refresh?}`) — motor determinista en `lib/shadow/review.ts`: recolecta señales de los 7 módulos y rankea `AttentionItem[]` por `score = pesoMódulo × factorSeveridad × urgencia(díasRestantes)`. Pesos: Academia 1.0 · Finanzas 0.95 · Salud/Metas 0.85 · Hábitos 0.7 · Tiempo 0.6 · Flouvia 0.55 — un examen difícil el viernes supera siempre a un follow-up. Shadow escribe el veredicto en 3 bloques (**Qué necesita tu atención** · **El período** · **Movimientos**) respetando ese orden. Items siempre recomputados (DB barato); veredicto cacheado: `review:week:{lunesISO}` / `review:month:{YYYY-MM}`. Se dispara desde `CierreFlow` en modo Semanal o Mensual (⌘.)
 
 ---
 
@@ -370,6 +377,9 @@ Patrón: la página es **server component** (SSR, carga datos) y las acciones in
 - **Panamericana**: dashboard académico interactivo — esquema de calificación por materia, calificar parciales inline, faltas, exámenes por dificultad + cuándo estudiar, horario y proyección de Shadow (ver sección Academia arriba)
 
 El **ticker** del topbar (en `Topbar.tsx`) fetcha al montar: MRR (`flouvia_clients.monthly_value` activos), hábitos del día, racha 7d, GPA (`academic_courses.grade`), sesiones de gym de la semana (`workout_sessions`). CDMX es placeholder estático.
+
+### Patrón loading.tsx
+Las rutas SSR con `revalidate = 0` tienen un `loading.tsx` que Next muestra automáticamente vía Suspense mientras cargan los datos. Usan `<DashboardSkeleton>` de `components/Skeleton.tsx` con props afinadas por página (`hero` para páginas con strip destacado, `kpis` para el número de KPIs). Rutas cubiertas: finanzas, salud, tiempo, gym, panamericana, metas, flouvia, brief, lectura, centro.
 
 ---
 

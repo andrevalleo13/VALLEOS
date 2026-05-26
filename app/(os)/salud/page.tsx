@@ -93,13 +93,17 @@ export default async function SaludPage() {
 
       <div className="page-body">
         {empty ? (
-          <div className="card text-center py-12">
-            <p style={{ color: "var(--mute)", fontSize: 14 }}>Sin datos de salud todavía</p>
-            <p className="tick mt-1 mb-4">Registra tu peso y tu día — sueño, ánimo, energía y actividad</p>
-            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-              <LogWeight variant="primary" label="Registrar peso" />
-              <LogHealth label="Registrar día" />
-            </div>
+          <div className="card">
+            <EmptyState
+              icon={HeartPulse}
+              title="Sin datos de salud todavía"
+              hint="Registra tu peso y tu día — sueño, ánimo, energía y actividad."
+            >
+              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                <LogWeight variant="primary" label="Registrar peso" />
+                <LogHealth label="Registrar día" />
+              </div>
+            </EmptyState>
           </div>
         ) : (
           <>

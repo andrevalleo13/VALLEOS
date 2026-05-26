@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, X, Check, CalendarClock, AlertTriangle, Info, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { ensurePushSubscription } from "@/lib/push/client";
 
 interface Notif {
   id: string;
@@ -126,8 +127,12 @@ export function NotifCenter() {
     const next = !open;
     setOpen(next);
     if (next) {
-      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
-        Notification.requestPermission().catch(() => {});
+      if (typeof window !== "undefined" && "Notification" in window) {
+        if (Notification.permission === "default") {
+          Notification.requestPermission().then((p) => { if (p === "granted") ensurePushSubscription(); }).catch(() => {});
+        } else if (Notification.permission === "granted") {
+          ensurePushSubscription();
+        }
       }
       const ids = items.filter((n) => !n.read).map((n) => n.id);
       if (ids.length) {

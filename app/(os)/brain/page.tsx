@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Plus, Search, Sparkles, Link as LinkIcon } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { createClient } from "@/lib/supabase/client";
 import type { BrainNote } from "@/lib/supabase/types";
 import ObsidianVault from "@/components/brain/ObsidianVault";
@@ -179,11 +180,12 @@ export default function BrainPage() {
                 {[1, 2, 3].map((i) => <div key={i} className="shimmer h-16 rounded-xl" />)}
               </div>
             ) : filtered.length === 0 ? (
-              <div className="card text-center py-12">
-                <Sparkles size={32} style={{ color: "var(--mute-2)", margin: "0 auto 12px" }} />
-                <p style={{ color: "var(--mute)", fontSize: 14 }}>
-                  {search ? "Sin resultados para esa búsqueda" : "Brain vacío — empieza capturando pensamientos"}
-                </p>
+              <div className="card">
+                <EmptyState
+                  icon={Sparkles}
+                  title={search ? "Sin resultados" : "Brain vacío"}
+                  hint={search ? "No hay notas para esa búsqueda." : "Empieza capturando pensamientos arriba."}
+                />
               </div>
             ) : (
               <div className="notes-list">

@@ -6,6 +6,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { Modal, Field } from "@/components/Modal";
 import { ColorPicker } from "@/components/ColorPicker";
+import { EmptyState } from "@/components/EmptyState";
 import type { Habit } from "@/lib/supabase/types";
 const WEEKDAYS = ["D", "L", "M", "M", "J", "V", "S"];
 const RANGE = 140;
@@ -168,13 +169,16 @@ export default function HabitosPage() {
 
       <div className="page-body">
         {total === 0 ? (
-          <div className="card text-center py-12">
-            <Sparkles size={32} style={{ color: "var(--mute-2)", margin: "0 auto 12px" }} />
-            <p style={{ color: "var(--mute)", fontSize: 15 }}>Sin hábitos configurados.</p>
-            <p className="tick mt-1 mb-4">Agrega tus primeros hábitos para empezar a construir rachas.</p>
-            <button className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
-              <Plus size={13} /> Crear hábito
-            </button>
+          <div className="card">
+            <EmptyState
+              icon={Sparkles}
+              title="Sin hábitos configurados"
+              hint="Agrega tus primeros hábitos para empezar a construir rachas."
+            >
+              <button className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
+                <Plus size={13} /> Crear hábito
+              </button>
+            </EmptyState>
           </div>
         ) : (
           <>
