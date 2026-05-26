@@ -3658,6 +3658,55 @@ body {
 .sl-pattern-lbl { font-family: var(--f-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mute); margin-bottom: 4px; }
 .sl-pattern-val { font-size: 14px; color: var(--bone-dim); }
 
+/* ── Obsidian Vault (Brain) ─────────────────────────────────────────────── */
+.ob-chip-on  { background: color-mix(in srgb, var(--green) 12%, transparent); color: var(--green); border-color: color-mix(in srgb, var(--green) 30%, transparent); }
+.ob-chip-off { background: var(--bg-raised); color: var(--mute); border-color: var(--line); }
+
+.ob-setup-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-bd);
+  border-radius: var(--radius);
+  padding: 20px;
+  max-width: 480px;
+}
+
+.ob-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.ob-bc-item {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--mute);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.15s var(--ease);
+}
+.ob-bc-item:hover { color: var(--bone-dim); }
+
+.ob-file-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-bd);
+  background: var(--glass-bg);
+  cursor: pointer;
+  transition: all 0.15s var(--ease);
+}
+.ob-file-item:hover { border-color: var(--glass-bd-2); background: var(--glass-bg-2); }
+.ob-file-dir { border-color: color-mix(in srgb, var(--gold) 20%, transparent); }
+.ob-file-dir:hover { border-color: color-mix(in srgb, var(--gold) 40%, transparent); background: color-mix(in srgb, var(--gold) 5%, transparent); }
+.ob-name-file { font-size: 13px; color: var(--bone-dim); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ob-name-dir  { font-size: 13px; color: var(--bone); font-weight: 500; flex: 1; }
+
 .sl-heat { display: grid; grid-template-columns: repeat(15, 1fr); gap: 5px; }
 @media (max-width: 540px) { .sl-heat { grid-template-columns: repeat(10, 1fr); } }
 .sl-heat-cell { aspect-ratio: 1; border-radius: 3px; }

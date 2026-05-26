@@ -42,6 +42,26 @@ export const SHADOW_TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "buscar_en_vault",
+    description:
+      "Busca notas en el Brain/vault de Obsidian de André por texto. Devuelve notas relevantes de su base de conocimiento personal. Úsalo cuando André pregunte sobre algo que puede estar en sus notas.",
+    input_schema: {
+      type: "object",
+      properties: { query: { type: "string", description: "Texto a buscar en las notas" } },
+      required: ["query"],
+    },
+  },
+  {
+    name: "leer_nota_vault",
+    description:
+      "Lee el contenido completo de una nota específica del vault de Obsidian sincronizado con Brain. Úsalo cuando André quiera revisar o referenciar una nota concreta.",
+    input_schema: {
+      type: "object",
+      properties: { titulo: { type: "string", description: "Título o ruta de la nota (parcial o exacto)" } },
+      required: ["titulo"],
+    },
+  },
+  {
     name: "agregar_prioridad",
     description: "Agrega una prioridad o tarea al día de André. Por defecto es para hoy.",
     input_schema: {
@@ -454,6 +474,40 @@ export async function executeTool(
         const { error } = await supabase.from("brain_notes").insert({ content: contenido, source: "shadow" });
         if (error) throw error;
         return { ok: true, summary: `Nota guardada en Brain: "${truncate(contenido)}"` };
+      }
+
+      case "buscar_en_vault": {
+        const query = String(input.query ?? "").trim();
+        if (!query) return { ok: false, summary: "Falta el término de búsqueda." };
+        const { data } = await supabase
+          .from("brain_notes")
+          .select("title, content, obsidian_path, source, created_at")
+          .ilike("content", `%${query}%`)
+          .order("created_at", { ascending: false })
+          .limit(8);
+        if (!data?.length) return { ok: true, summary: `No encontré notas sobre "${query}" en Brain/vault.` };
+        const lines = data.map((n) => {
+          const label = n.title || n.obsidian_path || "nota";
+          const src = n.source === "obsidian" ? " [vault]" : "";
+          const snippet = n.content.slice(0, 250).replace(/\n/g, " ");
+          return `**${label}**${src}: ${snippet}${n.content.length > 250 ? "…" : ""}`;
+        });
+        return { ok: true, summary: `Notas sobre "${query}":\n\n${lines.join("\n\n")}` };
+      }
+
+      case "leer_nota_vault": {
+        const titulo = String(input.titulo ?? "").trim();
+        if (!titulo) return { ok: false, summary: "Falta el título de la nota." };
+        const { data } = await supabase
+          .from("brain_notes")
+          .select("title, content, obsidian_path, created_at")
+          .or(`title.ilike.%${titulo}%,obsidian_path.ilike.%${titulo}%,content.ilike.%${titulo}%`)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+        if (!data) return { ok: true, summary: `No encontré ninguna nota con "${titulo}".` };
+        const label = data.title || data.obsidian_path || "Nota";
+        return { ok: true, summary: `**${label}**\n\n${data.content}` };
       }
 
       case "agregar_prioridad": {
