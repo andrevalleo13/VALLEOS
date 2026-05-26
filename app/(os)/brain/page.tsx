@@ -4,7 +4,7 @@ import { Plus, Search, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { BrainNote } from "@/lib/supabase/types";
 import ObsidianVault from "@/components/brain/ObsidianVault";
-import { getObsidianKey } from "@/lib/obsidian/client";
+import { getObsidianKey, getObsidianFolder, writeNote } from "@/lib/obsidian/client";
 
 export default function BrainPage() {
   const supabase = createClient();
@@ -34,7 +34,25 @@ export default function BrainPage() {
   async function save() {
     if (!newNote.trim()) return;
     setSaving(true);
-    await supabase.from("brain_notes").insert({ content: newNote.trim(), source: "quick_capture" });
+    const content = newNote.trim();
+
+    // Derive title from the first non-empty line
+    const title = content.split("\n").find((l) => l.trim()) ?? content.slice(0, 60);
+
+    // Push to Obsidian vault if connected (fire-and-forget, never blocks save)
+    let obsidian_path: string | undefined;
+    if (getObsidianKey()) {
+      try {
+        const safe = title.replace(/[/\\:*?"<>|#[\]^]/g, "").slice(0, 80).trim() || new Date().toISOString().slice(0, 19).replace(/:/g, "-");
+        const folder = getObsidianFolder();
+        obsidian_path = `${folder}/${safe}.md`;
+        await writeNote(obsidian_path, `# ${title}\n\n${content}\n`);
+      } catch {
+        obsidian_path = undefined;
+      }
+    }
+
+    await supabase.from("brain_notes").insert({ content, source: "quick_capture", title, obsidian_path });
     setNewNote("");
     setSaving(false);
     await load();

@@ -8,6 +8,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import {
   getObsidianKey, setObsidianKey, getObsidianPort, setObsidianPort,
+  getObsidianFolder, setObsidianFolder,
   testObsidian, listVault, readNote, writeNote, deleteNote, searchVault,
   type VaultEntry, type SearchMatch,
 } from "@/lib/obsidian/client";
@@ -39,6 +40,8 @@ export default function ObsidianVault() {
   const [newPath, setNewPath] = useState("");
   const [newContent, setNewContent] = useState("");
 
+  const [folderDraft, setFolderDraft] = useState("Brain");
+
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
 
@@ -49,6 +52,7 @@ export default function ObsidianVault() {
     if (k) {
       setKeyDraft(k);
       setPortDraft(getObsidianPort());
+      setFolderDraft(getObsidianFolder());
       checkAndLoad(false);
     } else {
       setConnected(false);
@@ -59,6 +63,7 @@ export default function ObsidianVault() {
     if (updateCreds) {
       setObsidianKey(keyDraft);
       setObsidianPort(portDraft);
+      setObsidianFolder(folderDraft);
     }
     setTesting(true);
     const ok = await testObsidian();
@@ -67,6 +72,25 @@ export default function ObsidianVault() {
     if (ok) {
       setShowSetup(false);
       loadFolder("");
+      // Auto-sync the configured sync folder (Brain/ by default) to Supabase so Shadow stays updated
+      autoSyncFolder(getObsidianFolder());
+    }
+  }
+
+  async function autoSyncFolder(folder: string) {
+    try {
+      const data = await listVault(folder);
+      const mdFiles = data.filter((e) => !e.isDir && e.path.endsWith(".md"));
+      for (const file of mdFiles) {
+        const content = await readNote(file.path);
+        const title = file.path.split("/").pop()?.replace(".md", "") ?? file.path;
+        await supabase.from("brain_notes").upsert(
+          { content, title, obsidian_path: file.path, source: "obsidian" },
+          { onConflict: "obsidian_path" }
+        );
+      }
+    } catch {
+      // Obsidian might not have this folder yet — silently ignore
     }
   }
 
@@ -425,6 +449,13 @@ export default function ObsidianVault() {
               <div>
                 <p className="eyebrow" style={{ marginBottom: 6 }}>Puerto</p>
                 <input className="input" placeholder="27124" value={portDraft} onChange={(e) => setPortDraft(e.target.value)} />
+              </div>
+              <div>
+                <p className="eyebrow" style={{ marginBottom: 6 }}>Carpeta de sync (Brain → Vault)</p>
+                <input className="input" placeholder="Brain" value={folderDraft} onChange={(e) => setFolderDraft(e.target.value)} />
+                <p style={{ fontSize: 11, color: "var(--mute)", marginTop: 4 }}>
+                  Las notas del quick capture se guardan aquí. También se auto-sincroniza al abrir.
+                </p>
               </div>
               <button className="btn btn-primary" onClick={() => checkAndLoad(true)} disabled={testing || !keyDraft.trim()}>
                 {testing ? "Probando..." : "Guardar y reconectar"}

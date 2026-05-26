@@ -1,5 +1,13 @@
-const KEY_LS = "valleos-obsidian-key";
-const PORT_LS = "valleos-obsidian-port";
+const KEY_LS    = "valleos-obsidian-key";
+const PORT_LS   = "valleos-obsidian-port";
+const FOLDER_LS = "valleos-obsidian-folder";
+
+export function getObsidianFolder(): string {
+  return localStorage.getItem(FOLDER_LS) ?? "Brain";
+}
+export function setObsidianFolder(folder: string) {
+  localStorage.setItem(FOLDER_LS, folder.replace(/\/$/, ""));
+}
 
 function base() {
   const port = localStorage.getItem(PORT_LS) ?? "27124";

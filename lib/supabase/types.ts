@@ -203,7 +203,7 @@ export interface Database {
       /* ── Brain ─────────────────────────────────────────── */
       brain_notes: {
         Row: { id: string; content: string; source: string; title: string | null; obsidian_path: string | null; created_at: string };
-        Insert: Omit<Database["public"]["Tables"]["brain_notes"]["Row"], "id" | "created_at">;
+        Insert: { content: string; source: string; title?: string | null; obsidian_path?: string | null };
         Update: Partial<Database["public"]["Tables"]["brain_notes"]["Insert"]>;
         Relationships: [];
       };
