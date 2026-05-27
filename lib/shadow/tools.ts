@@ -22,7 +22,7 @@ import type { HealthEntry, WeightLog, Goal, GoalMilestone } from "@/lib/supabase
 type DB = SupabaseClient<Database>;
 
 const FINANCIAL_CATEGORIES: FinancialCategory[] = [
-  "flouvia_ingreso", "gasto_personal", "gasto_flouvia", "ahorro", "inversion",
+  "flouvia_ingreso", "gasto_personal", "gasto_flouvia", "ahorro", "inversion", "pago_tarjeta",
 ];
 
 export const SHADOW_TOOLS: Anthropic.Tool[] = [
@@ -108,7 +108,10 @@ export const SHADOW_TOOLS: Anthropic.Tool[] = [
   {
     name: "registrar_finanza",
     description:
-      "Registra un movimiento financiero (ingreso, gasto, ahorro o inversión) en MXN. IMPORTANTE: tú categorizas. Elige la 'categoria' general y SIEMPRE asigna una 'subcategoria' canónica según en qué se gastó (ej. un café → comida, un Uber → transporte, Netflix → suscripciones, colegiatura → escuela). Si André menciona con qué pagó (efectivo, débito, una tarjeta), ponlo en metodo_pago.",
+      "Registra un movimiento financiero en MXN. IMPORTANTE: tú categorizas. Elige la 'categoria' general y, si es un gasto, SIEMPRE asigna una 'subcategoria' canónica según en qué se gastó (ej. un café → comida, un Uber → transporte, Netflix → suscripciones, colegiatura → escuela). " +
+      "DISTINGUE: si André COMPRÓ algo con una tarjeta de crédito → es un gasto (gasto_personal/gasto_flouvia), pon metodo_pago='tarjeta de crédito' y el nombre de la tarjeta en 'tarjeta'. " +
+      "Si André PAGÓ/abonó a la deuda de una tarjeta (no compró, sino que la pagó) → categoria='pago_tarjeta', pon la tarjeta en 'tarjeta' y de qué cuenta salió en 'cuenta'. Esto baja la deuda de la tarjeta. " +
+      "Para gastos en efectivo/débito/transferencia o ingresos, si menciona la cuenta ponla en 'cuenta'. Así los saldos se ajustan solos.",
     input_schema: {
       type: "object",
       properties: {
@@ -117,10 +120,12 @@ export const SHADOW_TOOLS: Anthropic.Tool[] = [
         categoria: { type: "string", enum: FINANCIAL_CATEGORIES },
         subcategoria: {
           type: "string",
-          description: `En qué se gastó/asignó. Elige la más cercana: ${SPENDING_BUCKETS.join(", ")}.`,
+          description: `En qué se gastó/asignó (solo gastos). Elige la más cercana: ${SPENDING_BUCKETS.join(", ")}.`,
           enum: SPENDING_BUCKETS,
         },
         metodo_pago: { type: "string", description: "ej. efectivo, débito, tarjeta de crédito, transferencia. Opcional." },
+        tarjeta: { type: "string", description: "Nombre o últimos 4 dígitos de la tarjeta de crédito (para compras a crédito o pagos de tarjeta). Opcional." },
+        cuenta: { type: "string", description: "Nombre de la cuenta de banco involucrada (origen del pago/gasto o destino del ingreso). Opcional." },
         fecha: { type: "string", description: "YYYY-MM-DD, opcional" },
       },
       required: ["descripcion", "monto", "categoria"],
@@ -594,16 +599,41 @@ export async function executeTool(
         if (!descripcion || !isFinite(monto)) return { ok: false, summary: "Falta descripción o un monto válido." };
         if (!FINANCIAL_CATEGORIES.includes(categoria))
           return { ok: false, summary: `Categoría inválida. Usa una de: ${FINANCIAL_CATEGORIES.join(", ")}.` };
-        const subcategory =
-          normalizeBucket(typeof input.subcategoria === "string" ? input.subcategoria : null) ??
-          normalizeBucket(descripcion) ??
-          (categoria === "gasto_personal" ? "otros" : null);
-        const payment_method = typeof input.metodo_pago === "string" && input.metodo_pago ? input.metodo_pago : null;
+        const isPagoTarjeta = categoria === "pago_tarjeta";
+        const subcategory = isPagoTarjeta
+          ? null
+          : normalizeBucket(typeof input.subcategoria === "string" ? input.subcategoria : null) ??
+            normalizeBucket(descripcion) ??
+            (categoria === "gasto_personal" ? "otros" : null);
+        let payment_method = typeof input.metodo_pago === "string" && input.metodo_pago ? input.metodo_pago : null;
+        if (isPagoTarjeta) payment_method = "pago de tarjeta";
+
+        // Resolver tarjeta / cuenta por nombre para que los triggers ajusten saldos
+        const wantsCard = isPagoTarjeta || payment_method === "tarjeta de crédito" || !!input.tarjeta;
+        let card_id: string | null = null;
+        let account_id: string | null = null;
+        if (wantsCard && typeof input.tarjeta === "string" && input.tarjeta.trim()) {
+          const q = input.tarjeta.trim().toLowerCase();
+          const { data: cards } = await supabase.from("credit_cards").select("id, name, last_four").eq("active", true);
+          const match = (cards ?? []).find((c) => c.name.toLowerCase().includes(q) || (c.last_four && q.includes(c.last_four)));
+          card_id = match?.id ?? null;
+        }
+        if (typeof input.cuenta === "string" && input.cuenta.trim()) {
+          const q = input.cuenta.trim().toLowerCase();
+          const { data: accts } = await supabase.from("bank_accounts").select("id, name").eq("active", true);
+          const match = (accts ?? []).find((a) => a.name.toLowerCase().includes(q));
+          account_id = match?.id ?? null;
+        }
+        if (isPagoTarjeta && !card_id)
+          return { ok: false, summary: "¿A qué tarjeta fue el pago? No identifiqué la tarjeta — dime su nombre." };
+
         const { error } = await supabase.from("financial_entries").insert({
           category: categoria, amount: monto, description: descripcion, date: fecha,
-          subcategory, card_id: null, account_id: null, payment_method,
+          subcategory, card_id, account_id, payment_method,
         });
         if (error) throw error;
+        if (isPagoTarjeta)
+          return { ok: true, summary: `Pago de tarjeta registrado: ${formatCurrency(monto)} — bajó la deuda` };
         const tag = subcategory ? ` · ${bucketLabel(subcategory)}` : "";
         return { ok: true, summary: `Movimiento registrado: ${descripcion} · ${formatCurrency(monto)}${tag}` };
       }

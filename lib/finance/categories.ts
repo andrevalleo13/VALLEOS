@@ -14,6 +14,7 @@ export type Bucket =
   | "ahorro"
   | "inversion"
   | "flouvia"
+  | "pago"
   | "otros";
 
 type BucketDef = { key: Bucket; label: string; color: string; icon: string };
@@ -32,6 +33,7 @@ export const BUCKETS: BucketDef[] = [
   { key: "ahorro", label: "Ahorro", color: "#C9A35F", icon: "PiggyBank" },
   { key: "inversion", label: "Inversión", color: "#9B7DE5", icon: "LineChart" },
   { key: "flouvia", label: "Flouvia", color: "#6B8AE5", icon: "Briefcase" },
+  { key: "pago", label: "Pago tarjeta", color: "#7FA8D0", icon: "CreditCard" },
   { key: "otros", label: "Otros", color: "#8A8A9A", icon: "MoreHorizontal" },
 ];
 
@@ -97,6 +99,7 @@ export function isIncome(category: FinancialCategory): boolean {
 /** Derives the spending/allocation bucket for an entry, unifying category + subcategory. */
 export function entryBucket(category: FinancialCategory, subcategory?: string | null): Bucket {
   if (category === "flouvia_ingreso") return "ingreso";
+  if (category === "pago_tarjeta") return "pago";
   if (category === "ahorro") return "ahorro";
   if (category === "inversion") return "inversion";
   if (category === "gasto_flouvia") return "flouvia";

@@ -1,6 +1,6 @@
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
 
-export type FinancialCategory = "flouvia_ingreso" | "gasto_personal" | "gasto_flouvia" | "ahorro" | "inversion";
+export type FinancialCategory = "flouvia_ingreso" | "gasto_personal" | "gasto_flouvia" | "ahorro" | "inversion" | "pago_tarjeta";
 export type ClientStatus = "propuesta" | "activo" | "pausado" | "completado";
 export type ShadowRole = "user" | "assistant" | "system" | "tool";
 

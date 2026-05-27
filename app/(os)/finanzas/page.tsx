@@ -1,12 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/utils";
-import { TrendingUp, TrendingDown, CreditCard, Landmark, Repeat, CalendarClock, Receipt } from "lucide-react";
-import { EmptyState } from "@/components/EmptyState";
+import { CreditCard, Repeat, CalendarClock } from "lucide-react";
 import { AddEntry } from "./AddEntry";
 import { AddAccount } from "./AddAccount";
 import { AddCard } from "./AddCard";
 import { FinanceCharts, type DistSlice, type TrendBar } from "./FinanceCharts";
 import { Analysis } from "./Analysis";
+import { CreditCardsList } from "./CreditCardsList";
+import { AccountsList } from "./AccountsList";
+import { Transactions } from "./Transactions";
+import { Budgets } from "./Budgets";
 import { BUCKETS, bucketLabel, bucketColor, entryBucket } from "@/lib/finance/categories";
 import { buildUpcomingPayments } from "@/lib/finance/payments";
 
@@ -28,6 +31,7 @@ export default async function FinanzasPage() {
     { data: capitalGoals },
     { data: investments },
     { data: recurring },
+    { data: budgets },
     { data: cache },
   ] = await Promise.all([
     supabase.from("bank_accounts").select("*").eq("active", true).order("sort_order"),
@@ -36,6 +40,7 @@ export default async function FinanzasPage() {
     supabase.from("capital_goals").select("*"),
     supabase.from("investments").select("*").eq("active", true),
     supabase.from("recurring_charges").select("*").eq("active", true),
+    supabase.from("budgets").select("*").eq("active", true),
     supabase.from("shadow_cache").select("content, generated_at").eq("key", `finanzas:${month}`).single(),
   ]);
 
@@ -55,7 +60,7 @@ export default async function FinanzasPage() {
   // Distribución del gasto (mes actual) por bucket
   const distMap = new Map<string, number>();
   for (const e of entries) {
-    if (e.category === "flouvia_ingreso") continue;
+    if (e.category === "flouvia_ingreso" || e.category === "pago_tarjeta") continue;
     const b = entryBucket(e.category, e.subcategory);
     distMap.set(b, (distMap.get(b) ?? 0) + e.amount);
   }
@@ -79,8 +84,13 @@ export default async function FinanzasPage() {
   }
 
   const payments = buildUpcomingPayments(cards ?? [], recurring ?? [], now).slice(0, 6);
-  const accountOpts = (banks ?? []).map((b) => ({ id: b.id, name: b.name }));
-  const cardOpts = (cards ?? []).map((c) => ({ id: c.id, name: c.name + (c.last_four ? ` ····${c.last_four}` : "") }));
+  const accountOpts = (banks ?? []).map((b) => ({ id: b.id, name: b.name, balance: b.current_balance }));
+  const cardOpts = (cards ?? []).map((c) => ({
+    id: c.id,
+    name: c.name + (c.last_four ? ` ····${c.last_four}` : ""),
+    currentBalance: c.current_balance,
+    statementBalance: c.statement_balance,
+  }));
 
   return (
     <div>
@@ -182,72 +192,14 @@ export default async function FinanzasPage() {
           </div>
         )}
 
+        {/* Presupuestos */}
+        <Budgets budgets={budgets ?? []} spent={Object.fromEntries(distMap)} />
+
         {/* Bank accounts */}
-        {(banks ?? []).length > 0 && (
-          <div className="card mb-6">
-            <p className="eyebrow mb-4">Cuentas</p>
-            <div className="flex flex-col gap-2">
-              {(banks ?? []).map((b) => (
-                <div key={b.id} className="tx-row">
-                  <div className="tx-icon"><Landmark size={14} style={{ color: "var(--gold)" }} /></div>
-                  <div className="flex-1">
-                    <p className="tx-desc">{b.name}</p>
-                    <p className="tx-date">{[b.bank, b.type, b.currency].filter(Boolean).join(" · ")}</p>
-                  </div>
-                  <span style={{ fontFamily: "var(--f-mono)", fontSize: 15, color: "var(--bone)" }}>
-                    {formatCurrency(b.current_balance)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {(banks ?? []).length > 0 && <AccountsList accounts={banks ?? []} />}
 
         {/* Credit cards */}
-        {(cards ?? []).length > 0 && (
-          <div className="card mb-6">
-            <p className="eyebrow mb-4">Tarjetas de crédito</p>
-            <div className="flex flex-col gap-3">
-              {(cards ?? []).map((c) => {
-                const used = c.credit_limit ? Math.round((c.current_balance / c.credit_limit) * 100) : 0;
-                return (
-                  <div key={c.id}>
-                    <div className="flex items-center gap-3 mb-1">
-                      <div className="tx-icon"><CreditCard size={14} style={{ color: "var(--blue)" }} /></div>
-                      <div className="flex-1">
-                        <p className="tx-desc">{c.name} {c.last_four && `····${c.last_four}`}</p>
-                        <p className="tx-date">
-                          {c.bank}
-                          {c.due_day && ` · paga día ${c.due_day}`}
-                          {c.statement_day && ` · corte ${c.statement_day}`}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p style={{ fontFamily: "var(--f-mono)", fontSize: 14, color: "var(--red)" }}>
-                          {formatCurrency(c.current_balance)}
-                        </p>
-                        {c.credit_limit && (
-                          <p className="tick">de {formatCurrency(c.credit_limit)}</p>
-                        )}
-                      </div>
-                    </div>
-                    {c.credit_limit && (
-                      <div className="progress" style={{ marginLeft: 48 }}>
-                        <div
-                          className="progress-fill"
-                          style={{
-                            width: `${used}%`,
-                            background: used > 80 ? "var(--red)" : used > 50 ? "var(--gold)" : "var(--green)",
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {(cards ?? []).length > 0 && <CreditCardsList cards={cards ?? []} />}
 
         {/* Capital goals */}
         {(capitalGoals ?? []).length > 0 && (
@@ -275,50 +227,7 @@ export default async function FinanzasPage() {
         )}
 
         {/* Transactions */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <p className="eyebrow">Últimos movimientos</p>
-            {entries.length > 0 && <span className="tick">{entries.length} este mes</span>}
-          </div>
-          {entries.length === 0 ? (
-            <div className="card">
-              <EmptyState
-                icon={Receipt}
-                title="Sin movimientos este mes"
-                hint="Registra tu primer ingreso o gasto para ver tu actividad aquí."
-              >
-                <AddEntry variant="primary" label="Registrar primero" accounts={accountOpts} cards={cardOpts} />
-              </EmptyState>
-            </div>
-          ) : (
-            <div className="tx-list">
-              {entries.slice(0, 25).map((tx) => {
-                const isIncome = tx.category === "flouvia_ingreso";
-                const bucket = entryBucket(tx.category, tx.subcategory);
-                return (
-                  <div key={tx.id} className="tx-row">
-                    <div className="tx-icon">
-                      {isIncome
-                        ? <TrendingUp size={14} style={{ color: "var(--green)" }} />
-                        : <TrendingDown size={14} style={{ color: bucketColor(bucket) }} />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="tx-desc">{tx.description ?? "Sin descripción"}</p>
-                      <p className="tx-date">
-                        {bucketLabel(bucket)}
-                        {tx.payment_method && ` · ${tx.payment_method}`}
-                      </p>
-                    </div>
-                    <span className="tx-date">{tx.date.slice(5)}</span>
-                    <span className={`tx-amount ${isIncome ? "income" : "expense"}`}>
-                      {isIncome ? "+" : "-"}{formatCurrency(tx.amount)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <Transactions entries={all} accounts={accountOpts} cards={cardOpts} />
       </div>
     </div>
   );

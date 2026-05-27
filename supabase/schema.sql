@@ -172,7 +172,7 @@ create table debts (
 
 create table financial_entries (
   id uuid primary key default uuid_generate_v4(),
-  category text not null check (category in ('flouvia_ingreso','gasto_personal','gasto_flouvia','ahorro','inversion')),
+  category text not null check (category in ('flouvia_ingreso','gasto_personal','gasto_flouvia','ahorro','inversion','pago_tarjeta')),
   amount numeric(14,2) not null,
   description text,
   date date not null default current_date,
