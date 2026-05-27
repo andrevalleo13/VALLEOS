@@ -3,8 +3,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAppStore } from "@/lib/store";
-import { Logo } from "@/components/Logo";
-import { ChevronDown, ChevronRight, Search } from "lucide-react";
+import { Orb } from "@/components/Orb";
+import { ChevronDown, ChevronRight, Search, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_SECTIONS = [
@@ -82,12 +82,13 @@ export function Sidebar() {
       )}
 
       <nav className={cn("shell-sidebar", mobileMenu && "open")}>
+        <div className="sidebar-glow" aria-hidden />
         {/* Brand */}
         <div className="sidebar-logo">
-          <Logo variant="mark" />
-          <div>
+          <Orb size={32} className="sidebar-orb" />
+          <div className="sidebar-brand-block">
             <div className="sidebar-brand">
-              VALLE<em style={{ color: "var(--gold)", fontStyle: "italic" }}>·</em>
+              VALLE<em>·</em>
             </div>
             <div className="sidebar-brand-meta">v2.0 · Motor de Ops</div>
           </div>
@@ -119,7 +120,7 @@ export function Sidebar() {
                   onClick={() => setMobileMenu(false)}
                 >
                   <span className="nav-num">{item.n}</span>
-                  <span>{item.label}</span>
+                  <span className="nav-label">{item.label}</span>
                 </Link>
               ))}
             </>
@@ -151,7 +152,7 @@ export function Sidebar() {
                         onClick={() => setMobileMenu(false)}
                       >
                         <span className="nav-num">{item.n}</span>
-                        <span>{item.label}</span>
+                        <span className="nav-label">{item.label}</span>
                       </Link>
                     ))}
                 </div>
@@ -162,21 +163,23 @@ export function Sidebar() {
 
         {/* Footer */}
         <div className="sidebar-footer">
-          <div
-            className="nav-item-v2"
+          <button
+            className="sidebar-cierre"
             onClick={() => { setCierreOpen(true); setMobileMenu(false); }}
           >
-            <span className="nav-num" style={{ color: "var(--mute-2)" }}>··</span>
+            <Moon size={13} />
             <span>Cierre nocturno</span>
-          </div>
+            <kbd className="sidebar-cierre-kbd">⌘.</kbd>
+          </button>
           <div className="sidebar-user">
-            <div>
-              <div style={{ fontSize: 13 }}>André Valle</div>
-              <div style={{ fontFamily: "var(--f-mono)", fontSize: 9, letterSpacing: "0.16em", color: "var(--mute)", textTransform: "uppercase" }}>
-                OPERADOR · ADMIN
-              </div>
+            <div className="sidebar-avatar">
+              A
+              <span className="sidebar-avatar-status" aria-hidden />
             </div>
-            <div className="sidebar-avatar">A</div>
+            <div>
+              <div className="sidebar-user-name">André Valle</div>
+              <div className="sidebar-user-role">OPERADOR · ADMIN</div>
+            </div>
           </div>
         </div>
       </nav>
