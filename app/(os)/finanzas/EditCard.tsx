@@ -14,7 +14,7 @@ export function EditCard({ card, onClose }: { card: CreditCard; onClose: () => v
   const [lastFour, setLastFour] = useState(card.last_four ?? "");
   const [limit, setLimit] = useState(card.credit_limit != null ? String(card.credit_limit) : "");
   const [balance, setBalance] = useState(String(card.current_balance));
-  const [stmtBalance, setStmtBalance] = useState(card.statement_balance != null ? String(card.statement_balance) : "");
+  const [stmtBalance, setStmtBalance] = useState(card.statement_balance != null ? String(Math.max(0, card.statement_balance)) : "");
   const [statementDay, setStatementDay] = useState(card.statement_day != null ? String(card.statement_day) : "");
   const [dueDay, setDueDay] = useState(card.due_day != null ? String(card.due_day) : "");
   const [apr, setApr] = useState(card.apr != null ? String(card.apr) : "");

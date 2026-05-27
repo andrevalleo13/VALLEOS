@@ -44,7 +44,8 @@ export function buildUpcomingPayments(
   for (const c of cards) {
     if (c.due_day == null) continue;
     const due = nextOccurrenceOfDay(c.due_day, from);
-    const amount = c.statement_balance ?? (c.current_balance > 0 ? c.current_balance : null);
+    const stmt = c.statement_balance != null ? Math.max(0, c.statement_balance) : null;
+    const amount = stmt ?? (c.current_balance > 0 ? c.current_balance : null);
     out.push({
       id: c.id,
       name: c.name + (c.last_four ? ` ····${c.last_four}` : ""),
