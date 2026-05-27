@@ -16,6 +16,7 @@ import { normalizeBucket, bucketLabel, entryBucket, SPENDING_BUCKETS } from "@/l
 import { buildUpcomingPayments } from "@/lib/finance/payments";
 import { avg, weightStats, sleepDebt, compareWindows, correlate, corrLabel } from "@/lib/salud/health";
 import { goalPct, goalPace, milestoneState } from "@/lib/metas/progress";
+import { buildDayPlan } from "@/lib/brief/plan";
 import type { HealthEntry, WeightLog, Goal, GoalMilestone } from "@/lib/supabase/types";
 
 type DB = SupabaseClient<Database>;
@@ -446,6 +447,33 @@ export const SHADOW_TOOLS: Anthropic.Tool[] = [
         enlace: { type: "string", description: "Ruta interna a abrir al hacer click, ej /calendario. Opcional" },
       },
       required: ["titulo"],
+    },
+  },
+  {
+    name: "planear_dia",
+    description:
+      "Crea uno o más bloques de tiempo en el Google Calendar de André para estructurar su día (estudio, gym, deep work, descanso). Úsala cuando André te pida 'planéame el día/la tarde', cuando le propongas un plan y acepte, o cuando detectes un examen/entrega cercana y quieras reservarle tiempo de estudio. Antes de planear, usa consultar_estado para ver su plan actual (clases, gym, eventos ya existentes) y NO encimar bloques. Usa horas realistas en formato 24h. Cada bloque se crea como evento de calendario.",
+    input_schema: {
+      type: "object",
+      properties: {
+        fecha: { type: "string", description: "YYYY-MM-DD. Opcional, default hoy." },
+        bloques: {
+          type: "array",
+          description: "Lista de bloques a crear en orden.",
+          items: {
+            type: "object",
+            properties: {
+              titulo: { type: "string", description: "Ej: 'Estudiar Cálculo III', 'Gym · Upper', 'Deep work Flouvia'" },
+              inicio: { type: "string", description: "Hora de inicio 24h, formato HH:MM" },
+              fin: { type: "string", description: "Hora de fin 24h, formato HH:MM" },
+              tipo: { type: "string", enum: ["estudio", "gym", "deep_work", "descanso", "otro"], description: "Opcional" },
+              descripcion: { type: "string", description: "Opcional" },
+            },
+            required: ["titulo", "inicio", "fin"],
+          },
+        },
+      },
+      required: ["bloques"],
     },
   },
 ];
@@ -929,6 +957,30 @@ export async function executeTool(
         return { ok: true, summary: `Evento eliminado: "${found.title}".` };
       }
 
+      case "planear_dia": {
+        const fecha = typeof input.fecha === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.fecha) ? input.fecha : todayISO();
+        const bloques = Array.isArray(input.bloques) ? input.bloques : [];
+        if (!bloques.length) return { ok: false, summary: "No me diste bloques que agendar." };
+        const created: string[] = [];
+        const failed: string[] = [];
+        for (const b of bloques) {
+          const blk = b as Record<string, unknown>;
+          const titulo = String(blk.titulo ?? "").trim();
+          const tm = /^(\d{1,2}):(\d{2})$/.exec(String(blk.inicio ?? ""));
+          const te = /^(\d{1,2}):(\d{2})$/.exec(String(blk.fin ?? ""));
+          if (!titulo || !tm || !te) { failed.push(titulo || "(sin título)"); continue; }
+          const startDate = new Date(`${fecha}T${tm[1].padStart(2, "0")}:${tm[2]}:00-06:00`);
+          const endDate = new Date(`${fecha}T${te[1].padStart(2, "0")}:${te[2]}:00-06:00`);
+          if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || endDate <= startDate) { failed.push(titulo); continue; }
+          const desc = typeof blk.descripcion === "string" ? blk.descripcion : undefined;
+          const ok = await createCalendarEvent(titulo, startDate, endDate, desc);
+          if (ok) created.push(`${tm[1].padStart(2, "0")}:${tm[2]}–${te[1].padStart(2, "0")}:${te[2]} ${titulo}`);
+          else failed.push(titulo);
+        }
+        if (!created.length) return { ok: false, summary: `No pude agendar ningún bloque${failed.length ? ` (${failed.join(", ")})` : ""}.` };
+        return { ok: true, summary: `Plan agendado (${fecha}): ${created.join("; ")}${failed.length ? ` · fallaron: ${failed.join(", ")}` : ""}` };
+      }
+
       case "crear_notificacion": {
         const titulo = String(input.titulo ?? "").trim();
         if (!titulo) return { ok: false, summary: "Falta el título de la notificación." };
@@ -1078,7 +1130,7 @@ async function deleteEvent(id: string): Promise<boolean> {
 async function buildStatus(supabase: DB, today: string): Promise<string> {
   const monthStart = today.slice(0, 7) + "-01";
   const weekAgo = new Date(Date.now() - 6 * 86400000).toISOString().split("T")[0];
-  const [{ data: prios }, { data: habits }, { data: comps }, { data: entries }, { data: banks }, { data: gymWeek }, { data: lastGym }, { data: exams }, { data: cards }, { data: recurring }, { data: sleepWeek }, { data: lastWeight }, { data: activeGoals }, { data: nextMs }] = await Promise.all([
+  const [{ data: prios }, { data: habits }, { data: comps }, { data: entries }, { data: banks }, { data: gymWeek }, { data: lastGym }, { data: exams }, { data: cards }, { data: recurring }, { data: sleepWeek }, { data: lastWeight }, { data: activeGoals }, { data: nextMs }, plan] = await Promise.all([
     supabase.from("priorities").select("text, completed").eq("date", today),
     supabase.from("habits").select("id, name").eq("active", true),
     supabase.from("habit_completions").select("habit_id").eq("date", today),
@@ -1093,6 +1145,7 @@ async function buildStatus(supabase: DB, today: string): Promise<string> {
     supabase.from("weight_logs").select("weight_kg, date").order("date", { ascending: false }).limit(1),
     supabase.from("goals").select("id, title, target_date").eq("status", "active"),
     supabase.from("goal_milestones").select("title, due_date").eq("done", false).not("due_date", "is", null).gte("due_date", today).order("due_date").limit(1),
+    buildDayPlan(supabase, today),
   ]);
 
   const done = new Set((comps ?? []).map((c) => c.habit_id));
@@ -1155,6 +1208,8 @@ async function buildStatus(supabase: DB, today: string): Promise<string> {
   return `Estado de hoy (${today}):
 Prioridades: ${prioList}
 Hábitos (${done.size}/${(habits ?? []).length}): ${habitsList}
+Plan cronológico de hoy (clases, gym, estudio, entregas y eventos):
+${plan.text}
 Finanzas del mes: saldo ${formatCurrency(balance)}, ingresos ${formatCurrency(income)}, gastos ${formatCurrency(expenses)}.
 ${payLine}
 ${gymLine}${calLine}

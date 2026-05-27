@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { greeting, todayISO } from "@/lib/utils";
 import { buildBriefRadar } from "@/lib/brief/today";
+import { buildDayPlan } from "@/lib/brief/plan";
+import { buildCrossInsights } from "@/lib/brief/insights";
 import { BriefClient } from "./BriefClient";
 
 export const revalidate = 0;
@@ -19,6 +21,7 @@ export default async function BriefPage() {
     { data: banks },
     { data: briefCache },
     radar,
+    plan,
   ] = await Promise.all([
     supabase.from("user_preferences").select("*").single(),
     supabase.from("priorities").select("id, text, completed").eq("date", today).order("created_at"),
@@ -29,7 +32,10 @@ export default async function BriefPage() {
     supabase.from("bank_accounts").select("current_balance, currency").eq("active", true),
     supabase.from("shadow_cache").select("content").eq("key", `brief:${today}`).single(),
     buildBriefRadar(supabase, today),
+    buildDayPlan(supabase, today),
   ]);
+
+  const insights = await buildCrossInsights(supabase, today, plan.items);
 
   const totalBalance = (banks ?? [])
     .filter((b) => b.currency === "MXN")
@@ -66,6 +72,8 @@ export default async function BriefPage() {
       radar={radar.items}
       tiempoHoy={radar.tiempoHoy}
       libro={radar.libro}
+      plan={plan.items}
+      insights={insights}
     />
   );
 }

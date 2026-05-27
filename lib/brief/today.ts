@@ -4,6 +4,7 @@ import { formatCurrency } from "@/lib/utils";
 import { buildUpcomingPayments } from "@/lib/finance/payments";
 import { studyState, daysUntil, DIFFICULTY_LABELS } from "@/lib/academia/grades";
 import { milestoneState } from "@/lib/metas/progress";
+import { gymToday } from "@/lib/brief/plan";
 
 type DB = SupabaseClient<Database>;
 
@@ -36,11 +37,10 @@ export async function buildBriefRadar(supabase: DB, today: string): Promise<Brie
   const in3 = addDays(today, 3);
   const in7 = addDays(today, 7);
   const now = new Date(today + "T00:00:00");
+  const weekday = new Date(today + "T12:00:00-06:00").getDay();
 
   const [
-    { data: routines },
-    { data: days },
-    { data: lastSess },
+    gym,
     { data: exams },
     { data: courses },
     { data: cards },
@@ -51,9 +51,7 @@ export async function buildBriefRadar(supabase: DB, today: string): Promise<Brie
     { data: reading },
     { data: timeLogs },
   ] = await Promise.all([
-    supabase.from("workout_routines").select("id, name, active").order("sort_order"),
-    supabase.from("workout_days").select("id, name, muscle_groups, day_order, routine_id").order("day_order"),
-    supabase.from("workout_sessions").select("day_id, date").not("day_id", "is", null).order("date", { ascending: false }).limit(1),
+    gymToday(supabase, weekday),
     supabase.from("grade_components").select("name, date, course_id, difficulty, study_start_date, status").eq("kind", "examen").neq("status", "done").gte("date", today).order("date").limit(5),
     supabase.from("academic_courses").select("id, name").eq("active", true),
     supabase.from("credit_cards").select("*").eq("active", true),
@@ -143,28 +141,19 @@ export async function buildBriefRadar(supabase: DB, today: string): Promise<Brie
     });
   }
 
-  // ── Gym: hoy toca (siguiente día del ciclo) ─────────────────────────────────
-  const routine = (routines ?? []).find((r) => r.active) ?? (routines ?? [])[0] ?? null;
-  if (routine) {
-    const dlist = (days ?? []).filter((d) => d.routine_id === routine.id);
-    let suggested = dlist[0] ?? null;
-    const lastDayId = lastSess?.[0]?.day_id;
-    if (lastDayId && dlist.length) {
-      const idx = dlist.findIndex((d) => d.id === lastDayId);
-      if (idx >= 0) suggested = dlist[(idx + 1) % dlist.length];
-    }
-    if (suggested) {
-      const mg = (suggested.muscle_groups as string[] | null) ?? [];
-      items.push({
-        key: "gym",
-        icon: "Dumbbell",
-        label: "Gym",
-        detail: `Hoy toca: ${suggested.name}${mg.length ? ` · ${mg.slice(0, 3).join(", ")}` : ""}`,
-        href: "/gym",
-        tone: "var(--green)",
-        urgent: false,
-      });
-    }
+  // ── Gym: hoy toca (desde el horario semanal real) ───────────────────────────
+  if (gym.length) {
+    const names = gym.map((g) => g.name).join(" + ");
+    const mg = gym.flatMap((g) => g.muscles).slice(0, 3);
+    items.push({
+      key: "gym",
+      icon: "Dumbbell",
+      label: "Gym",
+      detail: `Hoy toca: ${names}${mg.length ? ` · ${mg.join(", ")}` : ""}`,
+      href: "/gym",
+      tone: "var(--green)",
+      urgent: false,
+    });
   }
 
   // Urgentes primero, manteniendo el orden relativo dentro de cada grupo.

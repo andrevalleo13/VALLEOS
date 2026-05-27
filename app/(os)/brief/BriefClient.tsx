@@ -1,21 +1,25 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
 import { Orb } from "@/components/Orb";
 import {
-  ArrowRight, Check, Plus, X, RefreshCw, Calendar as CalIcon, Pencil,
+  ArrowRight, Check, Plus, X, RefreshCw, Pencil,
   Dumbbell, GraduationCap, CreditCard, Flag, Briefcase, Clock, BookOpen, Sparkles,
+  CalendarClock, Zap, AlertTriangle, TrendingDown, Layers,
 } from "lucide-react";
 import type { RadarItem } from "@/lib/brief/today";
+import type { PlanItem } from "@/lib/brief/plan";
+import type { CrossInsight } from "@/lib/brief/insights";
 import { fmtHours } from "@/lib/tiempo/categories";
 
 type Priority = { id: string; text: string; completed: boolean };
 type Habit = { id: string; name: string };
-type CalEvent = { id: string; title: string | null; start: string | null };
 
 const RADAR_ICONS = { Dumbbell, GraduationCap, CreditCard, Flag, Briefcase } as const;
+const PLAN_ICONS = { GraduationCap, Dumbbell, BookOpen, Flag, CalendarClock, Clock } as const;
+const INSIGHT_ICONS = { Zap, AlertTriangle, TrendingDown, CreditCard, Layers } as const;
 
 export function BriefClient({
   today,
@@ -35,6 +39,8 @@ export function BriefClient({
   radar,
   tiempoHoy,
   libro,
+  plan,
+  insights,
 }: {
   today: string;
   greetingText: string;
@@ -53,6 +59,8 @@ export function BriefClient({
   radar: RadarItem[];
   tiempoHoy: number;
   libro: { title: string; current: number | null; total: number | null; pct: number | null } | null;
+  plan: PlanItem[];
+  insights: CrossInsight[];
 }) {
   const supabase = createClient();
 
@@ -67,17 +75,6 @@ export function BriefClient({
   const [newPriority, setNewPriority] = useState("");
 
   const [doneHabits, setDoneHabits] = useState<Set<string>>(new Set(initialDoneHabitIds));
-
-  const [events, setEvents] = useState<CalEvent[]>([]);
-  const [calLoaded, setCalLoaded] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/calendar?days=1")
-      .then((r) => (r.ok ? r.json() : { events: [] }))
-      .then((d) => setEvents(d.events ?? []))
-      .catch(() => setEvents([]))
-      .finally(() => setCalLoaded(true));
-  }, []);
 
   async function regenerateBrief() {
     setBriefLoading(true);
@@ -176,6 +173,40 @@ export function BriefClient({
           <KPI label="Neto del mes" value={net !== 0 ? `${net > 0 ? "+" : ""}${formatCurrency(net)}` : "—"} accent={net > 0 ? "var(--green)" : net < 0 ? "var(--red)" : undefined} />
         </div>
       </div>
+
+      {/* Insights cruzados — lo que Shadow detecta entre módulos */}
+      {insights.length > 0 && (
+        <div className="page-body" style={{ paddingBottom: 0 }}>
+          <div
+            className="card"
+            style={{
+              borderColor: "var(--violet)",
+              background: "color-mix(in srgb, var(--violet) 6%, transparent)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Zap size={13} style={{ color: "var(--violet)" }} />
+              <p className="eyebrow" style={{ color: "var(--violet)" }}>Shadow detecta</p>
+            </div>
+            {insights.map((ins) => {
+              const Icon = INSIGHT_ICONS[ins.icon];
+              return (
+                <Link
+                  key={ins.key}
+                  href={ins.href}
+                  style={{ display: "flex", gap: 10, alignItems: "flex-start", textDecoration: "none" }}
+                >
+                  <Icon size={14} style={{ color: ins.tone, flexShrink: 0, marginTop: 2 }} />
+                  <p style={{ fontSize: 13, color: "var(--bone-dim)", lineHeight: 1.5 }}>{ins.text}</p>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Atender hoy — radar accionable */}
       <div className="page-body" style={{ paddingBottom: 0 }}>
@@ -393,30 +424,48 @@ export function BriefClient({
             </div>
           </div>
 
-          {/* Agenda de hoy */}
+          {/* Plan de hoy — timeline unificado (clases + gym + estudio + entregas + eventos) */}
           <div className="card">
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <p className="eyebrow">Agenda · hoy</p>
-              <Link href="/calendario"><CalIcon size={13} style={{ color: "var(--mute-2)" }} /></Link>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <p className="eyebrow">Plan de hoy</p>
+              <span className="tick">{plan.length ? `${plan.length} bloque${plan.length > 1 ? "s" : ""}` : ""}</span>
             </div>
-            {!calLoaded ? (
-              <div className="shimmer" style={{ height: 44, borderRadius: 10 }} />
-            ) : events.length === 0 ? (
-              <p className="tick">Sin eventos hoy</p>
+            {plan.length === 0 ? (
+              <p className="tick">Sin compromisos hoy — día abierto.</p>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {events.slice(0, 4).map((ev) => {
-                  const allDay = !!ev.start && ev.start.length <= 10;
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {plan.map((it) => {
+                  const Icon = PLAN_ICONS[it.icon];
                   return (
-                    <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ width: 3, height: 28, borderRadius: 2, background: "var(--gold)", flexShrink: 0 }} />
-                      <div style={{ minWidth: 0 }}>
-                        <p style={{ fontSize: 13, color: "var(--bone-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ev.title ?? "(sin título)"}</p>
-                        <p className="tick">
-                          {!ev.start ? "" : allDay ? "Todo el día" : new Date(ev.start).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}
+                    <Link
+                      key={it.key}
+                      href={it.href}
+                      style={{ display: "flex", gap: 11, alignItems: "flex-start", textDecoration: "none", padding: "7px 0" }}
+                    >
+                      <span
+                        className="mono"
+                        style={{ width: 40, flexShrink: 0, fontSize: 11.5, color: it.time ? "var(--bone-dim)" : "var(--mute-2)", textAlign: "right", marginTop: 2 }}
+                      >
+                        {it.time ?? "—"}
+                      </span>
+                      <span
+                        style={{
+                          width: 24, height: 24, borderRadius: 7, flexShrink: 0,
+                          display: "grid", placeItems: "center",
+                          background: `color-mix(in srgb, ${it.tone} 14%, transparent)`,
+                          color: it.tone,
+                        }}
+                      >
+                        <Icon size={12} />
+                      </span>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <p style={{ fontSize: 13, color: "var(--bone-dim)", lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {it.title}
+                          {it.endTime && <span className="tick" style={{ marginLeft: 6 }}>–{it.endTime}</span>}
                         </p>
+                        {it.detail && <p className="tick" style={{ marginTop: 1 }}>{it.detail}</p>}
                       </div>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
