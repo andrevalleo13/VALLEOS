@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import { Dumbbell, TrendingUp, TrendingDown, Activity, Calendar, Trophy, Footprints, Timer, Flag } from "lucide-react";
+import { Dumbbell, TrendingUp, TrendingDown, Activity, Calendar, Trophy, Footprints, Timer, Flag, Pencil } from "lucide-react";
 import type {
   WorkoutRoutine, WorkoutDay, WorkoutExercise, WorkoutSession, WorkoutSet,
   WorkoutSchedule, CardioSession, CardioGoal,
@@ -11,6 +11,7 @@ import {
   WEEK_ORDER, todayWeekday, activityEmoji, activityLabel, pace, fmtKm,
 } from "@/lib/gym/schedule";
 import { LogSession } from "./LogSession";
+import { EditSession } from "./EditSession";
 import { LogCardio } from "./LogCardio";
 import { RoutineEditor } from "./RoutineEditor";
 import { ScheduleEditor } from "./ScheduleEditor";
@@ -46,6 +47,7 @@ type Props = {
 
 export function GymClient({ routines, days, exercises, sessions, sets, schedule, cardio, cardioGoal }: Props) {
   const [period, setPeriod] = useState<7 | 30>(7);
+  const [editSession, setEditSession] = useState<WorkoutSession | null>(null);
 
   const activeRoutine = routines.find((r) => r.active) ?? routines[0] ?? null;
   const routineDays = useMemo(
@@ -372,14 +374,18 @@ export function GymClient({ routines, days, exercises, sessions, sets, schedule,
                 {WEEK_ORDER.map(({ idx, short }) => {
                   const dRows = schedule.filter((s) => s.weekday === idx).sort((a, b) => a.sort_order - b.sort_order);
                   const dayNames = dRows.map((r) => dayById[r.day_id]?.name).filter(Boolean) as string[];
+                  const rest = dayNames.length === 0;
+                  const isToday = idx === todayWd;
                   return (
-                    <div key={idx} className={`gym-week-day${idx === todayWd ? " today" : ""}`}>
-                      <span className="gym-week-wd">{short}</span>
-                      {dayNames.length === 0 ? (
-                        <span className="gym-week-rest">—</span>
-                      ) : (
-                        dayNames.map((n, i) => <span key={i} className="gym-week-tag">{n}</span>)
-                      )}
+                    <div key={idx} className={`gym-week-day${isToday ? " today" : ""}${rest ? " rest" : ""}`}>
+                      <span className="gym-week-wd">{short}{isToday && <i className="gym-week-dot" />}</span>
+                      <div className="gym-week-tags">
+                        {rest ? (
+                          <span className="gym-week-rest">Descanso</span>
+                        ) : (
+                          dayNames.map((n, i) => <span key={i} className="gym-week-tag">{n}</span>)
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -588,7 +594,13 @@ export function GymClient({ routines, days, exercises, sessions, sets, schedule,
                   const vol = volume(ss);
                   const exNames = Array.from(new Set(ss.map((x) => x.exercise_name)));
                   return (
-                    <div key={s.id} className="card" style={{ padding: "14px 18px" }}>
+                    <div
+                      key={s.id}
+                      className="card gym-hist-row"
+                      style={{ padding: "14px 18px" }}
+                      onClick={() => setEditSession(s)}
+                      title="Editar sesión"
+                    >
                       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                         <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--gold)", flexShrink: 0 }} />
                         <span style={{ fontSize: 14, color: "var(--bone)", fontFamily: "var(--f-serif)" }}>{s.day_name ?? "Sesión"}</span>
@@ -599,6 +611,7 @@ export function GymClient({ routines, days, exercises, sessions, sets, schedule,
                         {s.duration_minutes && <span className="tag" style={{ fontSize: 10 }}>{s.duration_minutes}min</span>}
                         <span className="tag tag-gold" style={{ fontSize: 10 }}>{ss.length} series</span>
                         {vol > 0 && <span className="tag" style={{ fontSize: 10 }}>{fmtVol(vol)}</span>}
+                        <Pencil size={13} className="gym-hist-edit" />
                       </div>
                       {exNames.length > 0 && (
                         <p className="tick" style={{ marginTop: 8, paddingLeft: 20 }}>
@@ -613,6 +626,14 @@ export function GymClient({ routines, days, exercises, sessions, sets, schedule,
           </>
         )}
       </div>
+
+      {editSession && (
+        <EditSession
+          session={editSession}
+          sets={setsBySession[editSession.id] ?? []}
+          onClose={() => setEditSession(null)}
+        />
+      )}
     </div>
   );
 }

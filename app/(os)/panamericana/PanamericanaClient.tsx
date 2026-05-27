@@ -11,6 +11,7 @@ import { AddCourse } from "./AddCourse";
 import { AddComponent } from "./AddComponent";
 import { AddAssignment } from "./AddAssignment";
 import { AddClass } from "./AddClass";
+import { EditCourse } from "./EditCourse";
 import { Semesters } from "./Semesters";
 import { EmptyState } from "@/components/EmptyState";
 import { deleteCalEvent } from "@/lib/academia/calendar";
@@ -362,6 +363,9 @@ function CourseCard({
 
       {expanded && (
         <div className="ac-course-body">
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+            <EditCourse course={course} />
+          </div>
           {/* meta línea: necesita / esquema */}
           <div className="ac-course-meta">
             {!grades.schemeComplete && (
