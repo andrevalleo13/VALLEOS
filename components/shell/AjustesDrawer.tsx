@@ -5,6 +5,7 @@ import { THEMES, applyTheme } from "@/lib/themes";
 import { ColorPicker } from "@/components/ColorPicker";
 import { darken, toRgba } from "@/lib/colors";
 import { X, RotateCcw, RefreshCw } from "lucide-react";
+import { InstallApp } from "./InstallApp";
 
 const ACCENT_PRESETS = [
   "#C9A35F", "#5B8DB8", "#7FA98C", "#8B77CC", "#D96B58",
@@ -105,6 +106,9 @@ export function AjustesDrawer() {
         </div>
 
         <div className="ajustes-body">
+          {/* Instalar como app */}
+          <InstallApp />
+
           {/* Tema base */}
           <div>
             <p className="ajustes-section-label">Tema base</p>
