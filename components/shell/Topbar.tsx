@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/store";
-import { Menu, Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
 import { NotifCenter } from "./NotifCenter";
@@ -21,7 +21,6 @@ export function Topbar() {
     setCaptureOpen,
     setCierreOpen,
     setAjustesOpen,
-    setMobileMenu,
     focusMode,
     setFocusMode,
   } = useAppStore();
@@ -134,20 +133,16 @@ export function Topbar() {
   return (
     <header className="shell-topbar">
       <div className="tb-left">
-        <button
-          className="tb-btn md:hidden"
-          onClick={() => setMobileMenu(true)}
-          aria-label="Menú"
-        >
-          <Menu size={16} />
-        </button>
+        <span className="tb-brand-m">
+          VALLE<em style={{ color: "var(--gold)", fontStyle: "italic" }}>·</em>
+        </span>
         <button className="kbd" onClick={() => setCmdkOpen(true)}>
           <span className="accent">⌘</span>K
         </button>
-        <button className="kbd" onClick={() => setCaptureOpen(true)}>
+        <button className="kbd kbd-extra" onClick={() => setCaptureOpen(true)}>
           <span className="accent">⌘</span>J
         </button>
-        <button className="kbd" onClick={() => setCierreOpen(true)}>
+        <button className="kbd kbd-extra" onClick={() => setCierreOpen(true)}>
           <span className="accent">⌘</span>.
         </button>
       </div>
@@ -164,12 +159,12 @@ export function Topbar() {
       </div>
 
       <div className="tb-right">
-        <div className="tb-widget">
+        <div className="tb-widget tb-weather">
           {isDay ? <Sun size={11} /> : <Moon size={11} />}
           <span>CDMX <span className="v">22°</span></span>
         </div>
         <button
-          className={`tb-widget${focusMode ? " active" : ""}`}
+          className={`tb-widget tb-silencio${focusMode ? " active" : ""}`}
           onClick={() => setFocusMode(!focusMode)}
           style={{ border: "none" }}
         >

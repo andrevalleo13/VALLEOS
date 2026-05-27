@@ -219,7 +219,7 @@ export function GymClient({ routines, days, exercises, sessions, sets }: Props) 
             </div>
 
             {/* Hoy + período */}
-            <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 20, alignItems: "start", marginBottom: 24 }}>
+            <div className="r-split" style={{ marginBottom: 24 }}>
               {/* Día de rutina sugerido */}
               <div className="card">
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
@@ -287,7 +287,7 @@ export function GymClient({ routines, days, exercises, sessions, sets }: Props) 
             </div>
 
             {/* Progresión + volumen semanal */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
+            <div className="r-split" style={{ marginBottom: 24 }}>
               <div className="card">
                 <p className="eyebrow mb-4">Progresión · peso máx</p>
                 {progression.length === 0 ? (

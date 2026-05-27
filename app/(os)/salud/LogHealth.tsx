@@ -126,7 +126,7 @@ export function LogHealth({ variant = "primary", label = "Registrar día" }: { v
           </div>
 
           <p className="eyebrow-gold mt-4 mb-2">Actividad</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          <div className="r3">
             <Field label="Pasos">
               <input className="input" type="number" inputMode="numeric" placeholder="8000" value={steps} onChange={(e) => setSteps(e.target.value)} />
             </Field>

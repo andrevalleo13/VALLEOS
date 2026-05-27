@@ -41,7 +41,7 @@ export default async function LecturaPage() {
 
       <div className="page-body">
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 32 }}>
+        <div className="r4" style={{ marginBottom: 32 }}>
           {[
             { label: "Leyendo",     val: reading.length, color: "var(--gold)" },
             { label: "Por leer",    val: pending.length,  color: "var(--mute)" },

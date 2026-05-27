@@ -217,7 +217,7 @@ export function FlouviaClient({ clients, projects, followups, invoices, analysis
       </div>
 
       {/* KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+      <div className="r4" style={{ marginBottom: 24 }}>
         {[
           { label: "Pipeline activo", val: pipeline > 0 ? formatCurrency(pipeline) : "—", color: "var(--bone)" },
           { label: "MRR", val: mrr > 0 ? formatCurrency(mrr) : "—", color: "var(--green)" },

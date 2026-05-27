@@ -76,7 +76,7 @@ export function Sidebar() {
       {/* Mobile overlay */}
       {mobileMenu && (
         <div
-          style={{ position: "fixed", inset: 0, zIndex: 39, background: "rgba(0,0,0,0.4)" }}
+          style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.5)" }}
           onClick={() => setMobileMenu(false)}
         />
       )}

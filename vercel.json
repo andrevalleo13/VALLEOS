@@ -1,6 +1,6 @@
 {
   "crons": [
     { "path": "/api/cron/recurring-charges", "schedule": "0 14 * * *" },
-    { "path": "/api/cron/notify", "schedule": "*/5 * * * *" }
+    { "path": "/api/cron/notify", "schedule": "0 16 * * *" }
   ]
 }

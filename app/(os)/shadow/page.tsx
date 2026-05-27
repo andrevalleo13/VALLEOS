@@ -230,7 +230,7 @@ export default function ShadowPage() {
         </div>
       </div>
 
-      <div className="page-body" style={{ display: "grid", gridTemplateColumns: "1fr 1.15fr", gap: 20, alignItems: "start" }}>
+      <div className="page-body r-split">
         {/* LEFT — HUD */}
         <div className="card glass" style={{ padding: "28px 22px", display: "flex", flexDirection: "column", alignItems: "center", gap: 22 }}>
           <div style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -372,7 +372,7 @@ export default function ShadowPage() {
       </div>
 
       {/* Quick prompts */}
-      <div className="page-body" style={{ paddingTop: 0, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+      <div className="page-body r4" style={{ paddingTop: 0 }}>
         {QUICK_PROMPTS.map((s) => (
           <button
             key={s.l}

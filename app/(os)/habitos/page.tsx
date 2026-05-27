@@ -211,7 +211,7 @@ export default function HabitosPage() {
             </div>
 
             {/* Main: check-off + calendar */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>
+            <div className="r-split">
               {/* Check-off for selected day */}
               <div className="card">
                 <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>

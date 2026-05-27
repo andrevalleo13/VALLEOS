@@ -79,7 +79,7 @@ export function AddCard({ sortOrder = 0 }: { sortOrder?: number }) {
               <input className="input" type="number" inputMode="decimal" placeholder="opcional" value={stmtBalance} onChange={(e) => setStmtBalance(e.target.value)} />
             </Field>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          <div className="r3">
             <Field label="Día de corte">
               <input className="input" inputMode="numeric" placeholder="1-31" value={statementDay} onChange={(e) => setStatementDay(e.target.value.replace(/\D/g, ""))} />
             </Field>

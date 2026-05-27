@@ -235,7 +235,7 @@ export function BriefClient({
       </div>
 
       {/* Two-column body */}
-      <div className="page-body" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>
+      <div className="page-body r-split">
         {/* Left */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* Shadow brief */}

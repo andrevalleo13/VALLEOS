@@ -52,7 +52,7 @@ export function LogWeight({ variant = "ghost", label = "Peso" }: { variant?: "gh
           <Field label="Fecha">
             <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </Field>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          <div className="r3">
             <Field label="Peso (kg)">
               <input className="input" type="number" inputMode="decimal" placeholder="72.5" value={weight} onChange={(e) => setWeight(e.target.value)} autoFocus />
             </Field>

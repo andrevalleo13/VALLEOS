@@ -128,7 +128,7 @@ export function GoalManage({
         <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} />
       </Field>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+      <div className="r3">
         <Field label="Categoría">
           <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
             {GOAL_CATS.map((c) => <option key={c.v} value={c.v}>{c.l}</option>)}

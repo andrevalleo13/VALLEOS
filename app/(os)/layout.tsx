@@ -1,4 +1,5 @@
 import { Sidebar } from "@/components/shell/Sidebar";
+import { BottomNav } from "@/components/shell/BottomNav";
 import { Topbar } from "@/components/shell/Topbar";
 import { AmbientBG } from "@/components/shell/AmbientBG";
 import { VoiceOrb } from "@/components/shell/VoiceOrb";
@@ -23,6 +24,7 @@ export default function OSLayout({ children }: { children: React.ReactNode }) {
           <Topbar />
           <main className="shell-content"><PageTransition>{children}</PageTransition></main>
         </div>
+        <BottomNav />
         <VoiceOrb />
         <CmdK />
         <CaptureModal />
