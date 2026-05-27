@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { CalendarPlus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Modal, Field } from "@/components/Modal";
+import { syncClass } from "@/lib/academia/calendar";
 
 const DAYS = [
   { v: 1, l: "Lunes" }, { v: 2, l: "Martes" }, { v: 3, l: "Miércoles" },
@@ -34,8 +35,16 @@ export function AddClass({
   async function save() {
     if (!courseId) return;
     setSaving(true);
+    const calendarEventId = await syncClass({
+      courseName: courses.find((c) => c.id === courseId)?.name ?? "Clase",
+      dayOfWeek: day,
+      startTime: start,
+      endTime: end,
+      room: room.trim() || null,
+    });
     await supabase.from("class_schedule").insert({
       course_id: courseId, day_of_week: day, start_time: start, end_time: end, room: room.trim() || null,
+      calendar_event_id: calendarEventId,
     });
     setSaving(false);
     setOpen(false);
@@ -71,6 +80,7 @@ export function AddClass({
           <Field label="Salón (opcional)">
             <input className="input" placeholder="ej. A-305" value={room} onChange={(e) => setRoom(e.target.value)} />
           </Field>
+          <p className="tick" style={{ marginTop: -4 }}>Se agregará como evento semanal recurrente a tu Google Calendar.</p>
           <div className="modal-actions">
             <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>Cancelar</button>
             <button className="btn btn-primary btn-sm" onClick={save} disabled={saving || !courseId}>

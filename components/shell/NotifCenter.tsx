@@ -18,7 +18,18 @@ interface Notif {
 }
 
 const SCAN_KEY = "valleos-notified-events";
+const ACAD_KEY = "valleos-notified-academia";
 const SOON_MIN = 60;
+
+function daysUntilDate(dateStr: string): number {
+  const d = new Date(dateStr + "T00:00:00");
+  const t = new Date(new Date().toISOString().split("T")[0] + "T00:00:00");
+  return Math.round((d.getTime() - t.getTime()) / 86400000);
+}
+
+function whenLabel(d: number): string {
+  return d === 0 ? "hoy" : d === 1 ? "mañana" : `en ${d} días`;
+}
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -108,12 +119,54 @@ export function NotifCenter() {
     } catch {}
   }, [supabase, refresh]);
 
+  const scanAcademia = useCallback(async () => {
+    try {
+      const nowDay = new Date().toISOString().split("T")[0];
+      const notified: Record<string, number> = JSON.parse(localStorage.getItem(ACAD_KEY) ?? "{}");
+      for (const k of Object.keys(notified)) if (!k.endsWith(nowDay)) delete notified[k];
+
+      const [assignRes, examRes] = await Promise.all([
+        supabase.from("assignments").select("id, title, due_date, status, academic_courses(name)").neq("status", "done").not("due_date", "is", null),
+        supabase.from("grade_components").select("id, name, date, status, academic_courses(name)").eq("kind", "examen").neq("status", "done").not("date", "is", null),
+      ]);
+
+      const rows: { title: string; body: string; severity: string; module: string; href: string; read: boolean; dismissed: boolean }[] = [];
+
+      type Row = { id: string; title?: string; name?: string; due_date?: string | null; date?: string | null; academic_courses: { name: string } | { name: string }[] | null };
+      const courseName = (r: Row) => Array.isArray(r.academic_courses) ? r.academic_courses[0]?.name : r.academic_courses?.name;
+
+      for (const a of (assignRes.data ?? []) as unknown as Row[]) {
+        const d = daysUntilDate(a.due_date!);
+        if (d < 0 || d > 2) continue;
+        const key = `a:${a.id}:${nowDay}`;
+        if (notified[key]) continue;
+        notified[key] = Date.now();
+        rows.push({ title: `📋 Entrega ${whenLabel(d)}: ${a.title}`, body: courseName(a) ?? "Panamericana", severity: d === 0 ? "error" : "warning", module: "panamericana", href: "/panamericana", read: false, dismissed: false });
+      }
+      for (const e of (examRes.data ?? []) as unknown as Row[]) {
+        const d = daysUntilDate(e.date!);
+        if (d < 0 || d > 3) continue;
+        const key = `e:${e.id}:${nowDay}`;
+        if (notified[key]) continue;
+        notified[key] = Date.now();
+        rows.push({ title: `📝 Examen ${whenLabel(d)}: ${e.name}`, body: courseName(e) ?? "Panamericana", severity: d <= 1 ? "error" : "warning", module: "panamericana", href: "/panamericana", read: false, dismissed: false });
+      }
+
+      localStorage.setItem(ACAD_KEY, JSON.stringify(notified));
+      if (rows.length) {
+        await supabase.from("notifications").insert(rows);
+        await refresh();
+      }
+    } catch {}
+  }, [supabase, refresh]);
+
   useEffect(() => {
     refresh();
     scanCalendar();
-    const t = setInterval(() => { refresh(); scanCalendar(); }, 60000);
+    scanAcademia();
+    const t = setInterval(() => { refresh(); scanCalendar(); scanAcademia(); }, 60000);
     return () => clearInterval(t);
-  }, [refresh, scanCalendar]);
+  }, [refresh, scanCalendar, scanAcademia]);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {

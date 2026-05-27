@@ -217,14 +217,14 @@ export interface Database {
 
       /* ── Academic (UP) ─────────────────────────────────── */
       academic_courses: {
-        Row: { id: string; name: string; professor: string | null; credits: number | null; grade: number | null; code: string | null; semester: string | null; target_grade: number; notes: string | null; professor_email: string | null; active: boolean; color: string; absences: number; max_absences: number | null; created_at: string };
-        Insert: Omit<Database["public"]["Tables"]["academic_courses"]["Row"], "id" | "created_at">;
+        Row: { id: string; name: string; professor: string | null; credits: number | null; grade: number | null; code: string | null; semester: string | null; semester_id: string | null; target_grade: number; notes: string | null; professor_email: string | null; active: boolean; color: string; absences: number; max_absences: number | null; created_at: string };
+        Insert: Omit<Database["public"]["Tables"]["academic_courses"]["Row"], "id" | "created_at" | "semester_id"> & { semester_id?: string | null };
         Update: Partial<Database["public"]["Tables"]["academic_courses"]["Insert"]>;
         Relationships: [];
       };
       grade_components: {
-        Row: { id: string; course_id: string; name: string; kind: string; weight: number; grade: number | null; date: string | null; difficulty: number | null; study_start_date: string | null; topics: string | null; status: string; sort_order: number; created_at: string };
-        Insert: Omit<Database["public"]["Tables"]["grade_components"]["Row"], "id" | "created_at">;
+        Row: { id: string; course_id: string; name: string; kind: string; weight: number; grade: number | null; date: string | null; exam_time: string | null; difficulty: number | null; study_start_date: string | null; topics: string | null; status: string; sort_order: number; calendar_event_id: string | null; study_event_id: string | null; created_at: string };
+        Insert: Omit<Database["public"]["Tables"]["grade_components"]["Row"], "id" | "created_at" | "exam_time" | "calendar_event_id" | "study_event_id"> & { exam_time?: string | null; calendar_event_id?: string | null; study_event_id?: string | null };
         Update: Partial<Database["public"]["Tables"]["grade_components"]["Insert"]>;
         Relationships: [];
       };
@@ -235,20 +235,20 @@ export interface Database {
         Relationships: [];
       };
       assignments: {
-        Row: { id: string; course_id: string; title: string; description: string | null; due_date: string | null; weight: number | null; grade: number | null; status: string; created_at: string };
-        Insert: Omit<Database["public"]["Tables"]["assignments"]["Row"], "id" | "created_at">;
+        Row: { id: string; course_id: string; title: string; description: string | null; due_date: string | null; due_time: string | null; weight: number | null; grade: number | null; status: string; calendar_event_id: string | null; created_at: string };
+        Insert: Omit<Database["public"]["Tables"]["assignments"]["Row"], "id" | "created_at" | "due_time" | "calendar_event_id"> & { due_time?: string | null; calendar_event_id?: string | null };
         Update: Partial<Database["public"]["Tables"]["assignments"]["Insert"]>;
         Relationships: [];
       };
       class_schedule: {
-        Row: { id: string; course_id: string; day_of_week: number; start_time: string; end_time: string; room: string | null; created_at: string };
-        Insert: Omit<Database["public"]["Tables"]["class_schedule"]["Row"], "id" | "created_at">;
+        Row: { id: string; course_id: string; day_of_week: number; start_time: string; end_time: string; room: string | null; calendar_event_id: string | null; created_at: string };
+        Insert: Omit<Database["public"]["Tables"]["class_schedule"]["Row"], "id" | "created_at" | "calendar_event_id"> & { calendar_event_id?: string | null };
         Update: Partial<Database["public"]["Tables"]["class_schedule"]["Insert"]>;
         Relationships: [];
       };
       semesters: {
-        Row: { id: string; label: string; start_date: string | null; end_date: string | null; gpa: number | null; credits_taken: number | null; credits_passed: number | null; notes: string | null; created_at: string };
-        Insert: Omit<Database["public"]["Tables"]["semesters"]["Row"], "id" | "created_at">;
+        Row: { id: string; label: string; start_date: string | null; end_date: string | null; gpa: number | null; credits_taken: number | null; credits_passed: number | null; status: string; term_number: number | null; course_count: number | null; notes: string | null; created_at: string };
+        Insert: Omit<Database["public"]["Tables"]["semesters"]["Row"], "id" | "created_at" | "status"> & { status?: string };
         Update: Partial<Database["public"]["Tables"]["semesters"]["Insert"]>;
         Relationships: [];
       };
@@ -340,6 +340,24 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["workout_sets"]["Insert"]>;
         Relationships: [];
       };
+      workout_schedule: {
+        Row: { id: string; weekday: number; day_id: string; sort_order: number; created_at: string };
+        Insert: Omit<Database["public"]["Tables"]["workout_schedule"]["Row"], "id" | "created_at">;
+        Update: Partial<Database["public"]["Tables"]["workout_schedule"]["Insert"]>;
+        Relationships: [];
+      };
+      cardio_sessions: {
+        Row: { id: string; date: string; activity: string; distance_km: number | null; duration_minutes: number | null; avg_hr: number | null; elevation_m: number | null; calories: number | null; notes: string | null; created_at: string };
+        Insert: Omit<Database["public"]["Tables"]["cardio_sessions"]["Row"], "id" | "created_at"> & { date?: string };
+        Update: Partial<Database["public"]["Tables"]["cardio_sessions"]["Insert"]>;
+        Relationships: [];
+      };
+      cardio_goal: {
+        Row: { id: number; weekly_km_target: number | null; race_distance_km: number | null; race_date: string | null; updated_at: string };
+        Insert: Partial<Omit<Database["public"]["Tables"]["cardio_goal"]["Row"], "updated_at">>;
+        Update: Partial<Omit<Database["public"]["Tables"]["cardio_goal"]["Row"], "updated_at">>;
+        Relationships: [];
+      };
 
       /* ── Pages ─────────────────────────────────────────── */
       custom_pages: {
@@ -388,6 +406,7 @@ export type AcademicCourse = Database["public"]["Tables"]["academic_courses"]["R
 export type Assignment = Database["public"]["Tables"]["assignments"]["Row"];
 export type GradeComponent = Database["public"]["Tables"]["grade_components"]["Row"];
 export type ClassSchedule = Database["public"]["Tables"]["class_schedule"]["Row"];
+export type Semester = Database["public"]["Tables"]["semesters"]["Row"];
 export type HealthEntry = Database["public"]["Tables"]["health_entries"]["Row"];
 export type WeightLog = Database["public"]["Tables"]["weight_logs"]["Row"];
 export type UserPreferences = Database["public"]["Tables"]["user_preferences"]["Row"];
@@ -399,3 +418,6 @@ export type WorkoutDay = Database["public"]["Tables"]["workout_days"]["Row"];
 export type WorkoutExercise = Database["public"]["Tables"]["workout_exercises"]["Row"];
 export type WorkoutSession = Database["public"]["Tables"]["workout_sessions"]["Row"];
 export type WorkoutSet = Database["public"]["Tables"]["workout_sets"]["Row"];
+export type WorkoutSchedule = Database["public"]["Tables"]["workout_schedule"]["Row"];
+export type CardioSession = Database["public"]["Tables"]["cardio_sessions"]["Row"];
+export type CardioGoal = Database["public"]["Tables"]["cardio_goal"]["Row"];

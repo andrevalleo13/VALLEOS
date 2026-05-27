@@ -8,7 +8,7 @@ import { formatCurrency } from "@/lib/utils";
 import {
   Home, Grid3x3, Sparkles, DollarSign, Brain, Calendar,
   CheckSquare, Target, Briefcase, BookOpen, Heart, Clock,
-  FileText, Settings, Moon, Plus, Search, Dumbbell, Scale, TrendingUp,
+  FileText, Settings, Moon, Plus, Search, Dumbbell, Scale, TrendingUp, Footprints,
 } from "lucide-react";
 
 const NAV = [
@@ -37,6 +37,7 @@ const ACTIONS = [
   { label: "Log de peso", icon: Scale, quick: "peso", href: "/salud" },
   { label: "Nueva meta", icon: Target, quick: "meta", href: "/metas" },
   { label: "Log de entrenamiento", icon: Dumbbell, quick: "entreno", href: "/gym" },
+  { label: "Registrar cardio", icon: Footprints, quick: "cardio", href: "/gym" },
   { label: "Cierre nocturno", icon: Moon, action: "cierre" },
   { label: "Configuración", icon: Settings, href: "/config" },
 ];

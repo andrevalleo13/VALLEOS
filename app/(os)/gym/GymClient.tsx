@@ -1,17 +1,32 @@
 "use client";
 import { useMemo, useState } from "react";
-import { Dumbbell, TrendingUp, TrendingDown, Activity, Calendar, Trophy } from "lucide-react";
+import { Dumbbell, TrendingUp, TrendingDown, Activity, Calendar, Trophy, Footprints, Timer, Flag } from "lucide-react";
 import type {
   WorkoutRoutine, WorkoutDay, WorkoutExercise, WorkoutSession, WorkoutSet,
+  WorkoutSchedule, CardioSession, CardioGoal,
 } from "@/lib/supabase/types";
 import { MUSCLES, muscleLabel, normalizeMuscle, type MuscleKey } from "@/lib/gym/muscles";
 import { MuscleMap, type MuscleStat } from "@/components/gym/MuscleMap";
+import {
+  WEEK_ORDER, todayWeekday, activityEmoji, activityLabel, pace, fmtKm,
+} from "@/lib/gym/schedule";
 import { LogSession } from "./LogSession";
+import { LogCardio } from "./LogCardio";
 import { RoutineEditor } from "./RoutineEditor";
+import { ScheduleEditor } from "./ScheduleEditor";
+import { CardioGoalEditor } from "./CardioGoalEditor";
 
 const iso = (d: Date) => d.toISOString().split("T")[0];
 const TODAY = iso(new Date());
 const daysAgoISO = (n: number) => iso(new Date(Date.now() - n * 86400000));
+
+function mondayISO(weeksAgo: number): string {
+  const base = new Date();
+  const dow = (base.getDay() + 6) % 7; // 0 = lunes
+  const mon = new Date(base);
+  mon.setDate(base.getDate() - dow - weeksAgo * 7);
+  return iso(mon);
+}
 
 function fmtVol(kg: number): string {
   if (kg >= 1000) return `${(kg / 1000).toFixed(1)}t`;
@@ -24,9 +39,12 @@ type Props = {
   exercises: WorkoutExercise[];
   sessions: WorkoutSession[];
   sets: WorkoutSet[];
+  schedule: WorkoutSchedule[];
+  cardio: CardioSession[];
+  cardioGoal: CardioGoal | null;
 };
 
-export function GymClient({ routines, days, exercises, sessions, sets }: Props) {
+export function GymClient({ routines, days, exercises, sessions, sets, schedule, cardio, cardioGoal }: Props) {
   const [period, setPeriod] = useState<7 | 30>(7);
 
   const activeRoutine = routines.find((r) => r.active) ?? routines[0] ?? null;
@@ -35,12 +53,19 @@ export function GymClient({ routines, days, exercises, sessions, sets }: Props) 
     [days, activeRoutine]
   );
 
-  // session id -> date
   const sessionDate = useMemo(() => {
     const m: Record<string, string> = {};
     for (const s of sessions) m[s.id] = s.date;
     return m;
   }, [sessions]);
+
+  const dayById = useMemo(() => Object.fromEntries(days.map((d) => [d.id, d])), [days]);
+  const exByDay = useMemo(() => {
+    const m: Record<string, WorkoutExercise[]> = {};
+    for (const e of exercises) (m[e.day_id] ??= []).push(e);
+    for (const k in m) m[k].sort((a, b) => a.sort_order - b.sort_order);
+    return m;
+  }, [exercises]);
 
   // Período actual y anterior
   const winStart = daysAgoISO(period - 1);
@@ -65,7 +90,6 @@ export function GymClient({ routines, days, exercises, sessions, sets }: Props) 
 
   const sessionsInWindow = sessions.filter((s) => s.date >= winStart && s.date <= TODAY);
 
-  // Mapa muscular: series por músculo en el período
   const muscleData = useMemo(() => {
     const counts: Partial<Record<MuscleKey, number>> = {};
     for (const s of curSets) {
@@ -91,7 +115,6 @@ export function GymClient({ routines, days, exercises, sessions, sets }: Props) 
   );
   const maxBar = Math.max(1, ...muscleBars.map((m) => m.sets));
 
-  // PRs este mes (peso máximo por ejercicio supera el histórico previo)
   const prCount = useMemo(() => {
     const monthStart = TODAY.slice(0, 7) + "-01";
     const byEx: Record<string, { before: number; month: number }> = {};
@@ -107,7 +130,6 @@ export function GymClient({ routines, days, exercises, sessions, sets }: Props) 
     return Object.values(byEx).filter((e) => e.month > e.before && e.before > 0).length;
   }, [sets, sessionDate]);
 
-  // Volumen por semana (8 semanas)
   const weekly = useMemo(() => {
     const weeks: { label: string; vol: number }[] = [];
     for (let w = 7; w >= 0; w--) {
@@ -120,7 +142,6 @@ export function GymClient({ routines, days, exercises, sessions, sets }: Props) 
   }, [sets, sessionDate]);
   const maxWeekly = Math.max(1, ...weekly.map((w) => w.vol));
 
-  // Progresión: top ejercicios por frecuencia, peso máx por fecha
   const progression = useMemo(() => {
     const freq: Record<string, number> = {};
     for (const s of sets) freq[s.exercise_name] = (freq[s.exercise_name] ?? 0) + 1;
@@ -140,7 +161,7 @@ export function GymClient({ routines, days, exercises, sessions, sets }: Props) 
     }).filter((p) => p.points.length > 0);
   }, [sets, sessionDate]);
 
-  // Día sugerido hoy (siguiente en el ciclo tras la última sesión)
+  // Día sugerido (ciclo) — fallback cuando no hay horario configurado
   const suggestedDay = useMemo(() => {
     if (routineDays.length === 0) return null;
     const lastWithDay = sessions.find((s) => s.day_id && routineDays.some((d) => d.id === s.day_id));
@@ -149,18 +170,97 @@ export function GymClient({ routines, days, exercises, sessions, sets }: Props) 
     return routineDays[(idx + 1) % routineDays.length];
   }, [routineDays, sessions]);
 
-  const suggestedExercises = exercises
-    .filter((e) => e.day_id === suggestedDay?.id)
-    .sort((a, b) => a.sort_order - b.sort_order);
+  // ── Horario semanal ──
+  const hasSchedule = schedule.length > 0;
+  const todayWd = todayWeekday();
+  const todaySchedRows = useMemo(
+    () => schedule.filter((s) => s.weekday === todayWd).sort((a, b) => a.sort_order - b.sort_order),
+    [schedule, todayWd]
+  );
+  const todayDays = useMemo(
+    () => todaySchedRows.map((r) => dayById[r.day_id]).filter(Boolean) as WorkoutDay[],
+    [todaySchedRows, dayById]
+  );
+  const logSuggestedIds = todayDays.length
+    ? todayDays.map((d) => d.id)
+    : suggestedDay
+    ? [suggestedDay.id]
+    : [];
 
-  // Historial: sesiones con sus series agrupadas por ejercicio
   const setsBySession = useMemo(() => {
     const m: Record<string, WorkoutSet[]> = {};
     for (const s of sets) (m[s.session_id] ??= []).push(s);
     return m;
   }, [sets]);
 
+  // ── Cardio ──
+  const weekStart = mondayISO(0);
+  const cardioWeek = cardio.filter((c) => c.date >= weekStart);
+  const weekKm = cardioWeek.reduce((a, c) => a + (c.distance_km ?? 0), 0);
+  const weeklyTarget = cardioGoal?.weekly_km_target ?? null;
+  const weekPct = weeklyTarget ? Math.min(100, (weekKm / weeklyTarget) * 100) : 0;
+
+  const totalKm = cardio.reduce((a, c) => a + (c.distance_km ?? 0), 0);
+  const runStats = useMemo(() => {
+    let mins = 0, km = 0;
+    for (const c of cardio) {
+      if (c.activity !== "run") continue;
+      if (c.duration_minutes && c.distance_km) { mins += c.duration_minutes; km += c.distance_km; }
+    }
+    return { avgPace: pace(mins, km) };
+  }, [cardio]);
+  const longestRun = useMemo(
+    () => cardio.filter((c) => c.activity === "run").reduce((m, c) => Math.max(m, c.distance_km ?? 0), 0),
+    [cardio]
+  );
+
+  const cardioWeekly = useMemo(() => {
+    const weeks: { label: string; km: number }[] = [];
+    for (let w = 7; w >= 0; w--) {
+      const start = mondayISO(w);
+      const end = iso(new Date(new Date(start).getTime() + 6 * 86400000));
+      const km = cardio.filter((c) => c.date >= start && c.date <= end).reduce((a, c) => a + (c.distance_km ?? 0), 0);
+      weeks.push({ label: w === 0 ? "Ahora" : `-${w}s`, km });
+    }
+    return weeks;
+  }, [cardio]);
+  const maxCardioWeek = Math.max(weeklyTarget ?? 0, 1, ...cardioWeekly.map((w) => w.km));
+
+  const raceDays = cardioGoal?.race_date
+    ? Math.ceil((new Date(cardioGoal.race_date + "T12:00:00").getTime() - Date.now()) / 86400000)
+    : null;
+
+  const hasCardio = cardio.length > 0 || cardioGoal != null;
   const empty = routines.length === 0;
+
+  function DayExercises({ day }: { day: WorkoutDay }) {
+    const exs = exByDay[day.id] ?? [];
+    return (
+      <div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
+          <h2 style={{ fontFamily: "var(--f-serif)", fontSize: 24, color: "var(--bone)" }}>{day.name}</h2>
+          <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+            {day.muscle_groups.map((m) => (
+              <span key={m} className="tag" style={{ fontSize: 9 }}>{muscleLabel(m)}</span>
+            ))}
+          </div>
+        </div>
+        <div className="gym-ex-list">
+          {exs.map((e) => (
+            <div key={e.id} className="gym-ex-row">
+              <span className="gym-ex-name">{e.name}</span>
+              <span className="gym-ex-target">
+                {e.tracking_type === "timed"
+                  ? `${e.target_sets}×${e.target_duration_seconds ?? "—"}s`
+                  : `${e.target_sets}×${e.target_reps ?? "—"}`}
+              </span>
+            </div>
+          ))}
+          {exs.length === 0 && <p className="tick">Este día no tiene ejercicios. Edítalo en la rutina.</p>}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -170,9 +270,11 @@ export function GymClient({ routines, days, exercises, sessions, sets }: Props) 
             <p className="eyebrow mb-2">11 · ENTRENAMIENTO</p>
             <h1 className="page-title">Gym.</h1>
           </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+          <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+            <ScheduleEditor routines={routines} days={days} schedule={schedule} />
             <RoutineEditor routines={routines} days={days} exercises={exercises} />
-            <LogSession routines={routines} days={days} exercises={exercises} suggestedDayId={suggestedDay?.id ?? null} />
+            <LogCardio />
+            <LogSession routines={routines} days={days} exercises={exercises} suggestedDayIds={logSuggestedIds} />
           </div>
         </div>
       </div>
@@ -218,42 +320,36 @@ export function GymClient({ routines, days, exercises, sessions, sets }: Props) 
               </div>
             </div>
 
-            {/* Hoy + período */}
+            {/* Hoy + músculos */}
             <div className="r-split" style={{ marginBottom: 24 }}>
-              {/* Día de rutina sugerido */}
               <div className="card">
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
                   <p className="eyebrow">Hoy toca</p>
                   <span className="tick">{activeRoutine?.name}</span>
                 </div>
-                {suggestedDay ? (
+                {hasSchedule ? (
+                  todayDays.length ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                      {todayDays.map((d) => <DayExercises key={d.id} day={d} />)}
+                    </div>
+                  ) : (
+                    <div style={{ padding: "10px 0" }}>
+                      <h2 style={{ fontFamily: "var(--f-serif)", fontSize: 24, color: "var(--bone)" }}>Descanso.</h2>
+                      <p className="tick mt-1">Hoy no toca. Recupera — o registra un cardio ligero.</p>
+                    </div>
+                  )
+                ) : suggestedDay ? (
                   <>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12 }}>
-                      <h2 style={{ fontFamily: "var(--f-serif)", fontSize: 26, color: "var(--bone)" }}>{suggestedDay.name}</h2>
-                      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                        {suggestedDay.muscle_groups.map((m) => (
-                          <span key={m} className="tag" style={{ fontSize: 9 }}>{muscleLabel(m)}</span>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="gym-ex-list">
-                      {suggestedExercises.map((e) => (
-                        <div key={e.id} className="gym-ex-row">
-                          <span className="gym-ex-name">{e.name}</span>
-                          <span className="gym-ex-target">{e.target_sets}×{e.target_reps ?? "—"}</span>
-                        </div>
-                      ))}
-                      {suggestedExercises.length === 0 && (
-                        <p className="tick">Este día no tiene ejercicios. Edítalo en la rutina.</p>
-                      )}
-                    </div>
+                    <DayExercises day={suggestedDay} />
+                    <p className="tick" style={{ marginTop: 12 }}>
+                      Sugerencia por ciclo. Define tu semana con <strong style={{ color: "var(--gold)" }}>Horario</strong> para fijar qué toca cada día.
+                    </p>
                   </>
                 ) : (
                   <p className="tick">Sin días en la rutina activa.</p>
                 )}
               </div>
 
-              {/* Mapa muscular */}
               <div className="card">
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                   <p className="eyebrow">Músculos trabajados</p>
@@ -266,7 +362,31 @@ export function GymClient({ routines, days, exercises, sessions, sets }: Props) 
               </div>
             </div>
 
-            {/* Análisis: volumen por músculo */}
+            {/* Tu semana */}
+            <div className="card mb-6">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <p className="eyebrow">Tu semana</p>
+                <ScheduleEditor routines={routines} days={days} schedule={schedule} label="Editar" />
+              </div>
+              <div className="gym-week">
+                {WEEK_ORDER.map(({ idx, short }) => {
+                  const dRows = schedule.filter((s) => s.weekday === idx).sort((a, b) => a.sort_order - b.sort_order);
+                  const dayNames = dRows.map((r) => dayById[r.day_id]?.name).filter(Boolean) as string[];
+                  return (
+                    <div key={idx} className={`gym-week-day${idx === todayWd ? " today" : ""}`}>
+                      <span className="gym-week-wd">{short}</span>
+                      {dayNames.length === 0 ? (
+                        <span className="gym-week-rest">—</span>
+                      ) : (
+                        dayNames.map((n, i) => <span key={i} className="gym-week-tag">{n}</span>)
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Volumen por músculo */}
             <div className="card mb-6">
               <p className="eyebrow mb-4">Volumen por músculo · {period === 7 ? "semana" : "mes"}</p>
               {muscleBars.length === 0 ? (
@@ -337,6 +457,122 @@ export function GymClient({ routines, days, exercises, sessions, sets }: Props) 
                   })}
                 </div>
               </div>
+            </div>
+
+            {/* Cardio / Carrera */}
+            <div className="card mb-6">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                <p className="eyebrow" style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <Footprints size={13} style={{ color: "var(--gold)" }} /> Carrera · cardio
+                </p>
+                <CardioGoalEditor goal={cardioGoal} />
+              </div>
+
+              {!hasCardio ? (
+                <p className="tick">Aún no registras cardio. Usa “Cardio” arriba para empezar — o fija una meta semanal con el objetivo (⌖).</p>
+              ) : (
+                <>
+                  {/* Meta semanal */}
+                  {weeklyTarget != null && (
+                    <div className="gym-cardio-goal">
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                        <span style={{ fontSize: 13, color: "var(--bone)" }}>Esta semana</span>
+                        <span style={{ fontFamily: "var(--f-mono)", fontSize: 13, color: weekPct >= 100 ? "var(--green)" : "var(--bone)" }}>
+                          {fmtKm(weekKm)} / {fmtKm(weeklyTarget)} km
+                        </span>
+                      </div>
+                      <div className="gym-bar-track" style={{ height: 12 }}>
+                        <div className="gym-bar-fill" style={{ width: `${weekPct}%`, background: weekPct >= 100 ? "linear-gradient(90deg, var(--green), var(--gold))" : undefined }} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Stats cardio */}
+                  <div className="gym-cardio-stats">
+                    <div className="gym-cardio-stat">
+                      <span className="v">{fmtKm(totalKm)}<small>km</small></span>
+                      <span className="l">Total · 120d</span>
+                    </div>
+                    <div className="gym-cardio-stat">
+                      <span className="v">{cardio.length}</span>
+                      <span className="l">Sesiones</span>
+                    </div>
+                    <div className="gym-cardio-stat">
+                      <span className="v" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <Timer size={14} style={{ color: "var(--mute)" }} />{runStats.avgPace ?? "—"}
+                      </span>
+                      <span className="l">Ritmo medio /km</span>
+                    </div>
+                    {cardioGoal?.race_distance_km != null && (
+                      <div className="gym-cardio-stat">
+                        <span className="v" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          <Flag size={14} style={{ color: "var(--gold)" }} />{fmtKm(cardioGoal.race_distance_km)}<small>km</small>
+                        </span>
+                        <span className="l">{raceDays != null && raceDays >= 0 ? `Meta · ${raceDays}d` : "Meta"}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Progreso hacia la carrera objetivo */}
+                  {cardioGoal?.race_distance_km != null && cardioGoal.race_distance_km > 0 && (
+                    <div className="gym-cardio-goal" style={{ marginTop: 14 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                        <span style={{ fontSize: 13, color: "var(--bone)" }}>Distancia más larga</span>
+                        <span style={{ fontFamily: "var(--f-mono)", fontSize: 13, color: "var(--bone)" }}>
+                          {fmtKm(longestRun)} / {fmtKm(cardioGoal.race_distance_km)} km
+                        </span>
+                      </div>
+                      <div className="gym-bar-track" style={{ height: 12 }}>
+                        <div className="gym-bar-fill" style={{ width: `${Math.min(100, (longestRun / cardioGoal.race_distance_km) * 100)}%` }} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Distancia semanal 8s */}
+                  <p className="eyebrow mt-4 mb-2" style={{ fontSize: 9 }}>Distancia semanal · 8 semanas</p>
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 100 }}>
+                    {cardioWeekly.map((w, i) => {
+                      const pct = (w.km / maxCardioWeek) * 100;
+                      return (
+                        <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                          <span className="tick" style={{ fontSize: 9 }}>{w.km > 0 ? fmtKm(w.km) : ""}</span>
+                          <div
+                            title={`${fmtKm(w.km)} km`}
+                            style={{
+                              width: "100%",
+                              height: `${Math.max(pct, w.km > 0 ? 6 : 2)}%`,
+                              background: i === cardioWeekly.length - 1 ? "linear-gradient(180deg, var(--gold), var(--gold-2))" : "var(--line-2)",
+                              borderRadius: "4px 4px 0 0",
+                              minHeight: 4,
+                              transition: "height 0.5s var(--ease)",
+                            }}
+                          />
+                          <span className="tick" style={{ fontSize: 9 }}>{w.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Cardio reciente */}
+                  {cardio.length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 16 }}>
+                      {cardio.slice(0, 6).map((c) => (
+                        <div key={c.id} className="gym-cardio-row">
+                          <span className="gym-cardio-emoji">{activityEmoji(c.activity)}</span>
+                          <span style={{ fontSize: 13, color: "var(--bone)" }}>{activityLabel(c.activity)}</span>
+                          {c.distance_km != null && <span className="tag tag-gold" style={{ fontSize: 10 }}>{fmtKm(c.distance_km)} km</span>}
+                          {c.duration_minutes != null && <span className="tag" style={{ fontSize: 10 }}>{c.duration_minutes} min</span>}
+                          {pace(c.duration_minutes, c.distance_km) && <span className="tag" style={{ fontSize: 10 }}>{pace(c.duration_minutes, c.distance_km)}/km</span>}
+                          <span style={{ flex: 1 }} />
+                          <span className="tick" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <Calendar size={11} /> {new Date(c.date + "T12:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "short" })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Historial */}

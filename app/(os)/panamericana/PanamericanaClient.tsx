@@ -11,8 +11,10 @@ import { AddCourse } from "./AddCourse";
 import { AddComponent } from "./AddComponent";
 import { AddAssignment } from "./AddAssignment";
 import { AddClass } from "./AddClass";
+import { Semesters } from "./Semesters";
 import { EmptyState } from "@/components/EmptyState";
-import type { AcademicCourse, Assignment, GradeComponent, ClassSchedule } from "@/lib/supabase/types";
+import { deleteCalEvent } from "@/lib/academia/calendar";
+import type { AcademicCourse, Assignment, GradeComponent, ClassSchedule, Semester } from "@/lib/supabase/types";
 import {
   computeCourseGrades, neededForTarget, daysUntil, studyState, absenceRisk,
   DIFFICULTY_LABELS, DIFFICULTY_COLORS, KIND_LABELS, suggestStudyStart, type StudyState,
@@ -24,6 +26,8 @@ type Props = {
   components: GradeComponent[];
   assignments: AssignmentRow[];
   schedule: ClassSchedule[];
+  closedSemesters: Semester[];
+  activeSemester: Semester | null;
   analysis: string | null;
   analysisAt: string | null;
 };
@@ -40,7 +44,7 @@ const STUDY_BADGE: Record<StudyState, { label: string; color: string } | null> =
   past: null,
 };
 
-export function PanamericanaClient({ courses, components, assignments, schedule, analysis, analysisAt }: Props) {
+export function PanamericanaClient({ courses, components, assignments, schedule, closedSemesters, activeSemester, analysis, analysisAt }: Props) {
   const router = useRouter();
   const supabase = createClient();
   const today = new Date().toISOString().split("T")[0];
@@ -96,6 +100,7 @@ export function PanamericanaClient({ courses, components, assignments, schedule,
     setBusy(comp.id);
     const updated = (compsByCourse.get(comp.course_id) ?? []).filter((c) => c.id !== comp.id);
     const g = computeCourseGrades(updated);
+    await Promise.all([deleteCalEvent(comp.calendar_event_id), deleteCalEvent(comp.study_event_id)]);
     await supabase.from("grade_components").delete().eq("id", comp.id);
     await supabase.from("academic_courses").update({ grade: g.currentGrade !== null ? Math.round(g.currentGrade * 100) / 100 : null }).eq("id", comp.course_id);
     setBusy(null);
@@ -112,6 +117,8 @@ export function PanamericanaClient({ courses, components, assignments, schedule,
 
   async function deleteSchedule(id: string) {
     setBusy(id);
+    const row = schedule.find((s) => s.id === id);
+    await deleteCalEvent(row?.calendar_event_id);
     await supabase.from("class_schedule").delete().eq("id", id);
     setBusy(null);
     router.refresh();
@@ -190,12 +197,15 @@ export function PanamericanaClient({ courses, components, assignments, schedule,
           </div>
         </div>
 
+        {/* Trayectoria académica: promedio general, créditos, historial de semestres */}
+        <Semesters courses={courses} closed={closedSemesters} activeSemester={activeSemester} />
+
         {courses.length === 0 ? (
           <div className="card">
             <EmptyState
               icon={GraduationCap}
-              title="Sin materias registradas"
-              hint="Agrega tus materias con su esquema de calificación para proyectar el semestre."
+              title="Sin materias del semestre actual"
+              hint="Agrega las materias de tu semestre en curso con su esquema de calificación, o registra tus semestres pasados arriba."
             >
               <AddCourse variant="primary" label="Agregar materia" />
             </EmptyState>

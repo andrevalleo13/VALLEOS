@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Modal, Field } from "@/components/Modal";
 import { suggestStudyStart, DIFFICULTY_LABELS, KIND_LABELS } from "@/lib/academia/grades";
+import { syncExam, syncStudyBlock } from "@/lib/academia/calendar";
 
 const KINDS = ["examen", "tarea", "proyecto", "participacion", "otro"] as const;
 
@@ -28,6 +29,7 @@ export function AddComponent({
   const [weight, setWeight] = useState("");
   const [grade, setGrade] = useState("");
   const [date, setDate] = useState("");
+  const [examTime, setExamTime] = useState("");
   const [difficulty, setDifficulty] = useState(3);
   const [studyStart, setStudyStart] = useState("");
   const [topics, setTopics] = useState("");
@@ -44,6 +46,19 @@ export function AddComponent({
       .from("grade_components").select("sort_order").eq("course_id", courseId)
       .order("sort_order", { ascending: false }).limit(1);
     const g = grade.trim() ? parseFloat(grade) : null;
+    const effectiveStudy = isExam ? (studyStart || suggestedStudy) : null;
+    const courseName = courses.find((c) => c.id === courseId)?.name;
+
+    // Sincroniza al calendario solo exámenes sin calificar aún (futuros).
+    let examEventId: string | null = null;
+    let studyEventId: string | null = null;
+    if (isExam && date && g === null) {
+      examEventId = await syncExam({ name: name.trim(), courseName, date, examTime: examTime || null, topics: topics.trim() || null });
+      if (effectiveStudy) {
+        studyEventId = await syncStudyBlock({ examName: name.trim(), courseName, studyStart: effectiveStudy });
+      }
+    }
+
     await supabase.from("grade_components").insert({
       course_id: courseId,
       name: name.trim(),
@@ -51,16 +66,19 @@ export function AddComponent({
       weight: weight.trim() ? parseFloat(weight) : 0,
       grade: g,
       date: date || null,
+      exam_time: isExam ? (examTime || null) : null,
       difficulty: isExam ? difficulty : null,
-      study_start_date: isExam ? (studyStart || suggestedStudy) : null,
+      study_start_date: effectiveStudy,
       topics: topics.trim() || null,
       status: g !== null ? "done" : "pending",
       sort_order: (maxRow?.[0]?.sort_order ?? 0) + 1,
+      calendar_event_id: examEventId,
+      study_event_id: studyEventId,
     });
     if (g !== null) await recompute(supabase, courseId);
     setSaving(false);
     setOpen(false);
-    setName(""); setWeight(""); setGrade(""); setDate(""); setStudyStart(""); setTopics("");
+    setName(""); setWeight(""); setGrade(""); setDate(""); setExamTime(""); setStudyStart(""); setTopics("");
     router.refresh();
   }
 
@@ -97,11 +115,19 @@ export function AddComponent({
               <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </Field>
             {isExam && (
+              <Field label="Hora del examen (opcional)">
+                <input className="input" type="time" value={examTime} onChange={(e) => setExamTime(e.target.value)} />
+              </Field>
+            )}
+            {isExam && (
               <Field label={`Dificultad · ${DIFFICULTY_LABELS[difficulty]}`}>
                 <input className="input" type="range" min={1} max={5} value={difficulty} onChange={(e) => setDifficulty(parseInt(e.target.value))} />
               </Field>
             )}
           </div>
+          {isExam && date && grade.trim() === "" && (
+            <p className="tick" style={{ marginTop: -4 }}>Se agendará el examen y el bloque de estudio en tu Google Calendar.</p>
+          )}
           {isExam && (
             <>
               <Field label="Estudiar desde">

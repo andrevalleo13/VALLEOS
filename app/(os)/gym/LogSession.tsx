@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, X, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { Modal, Field } from "@/components/Modal";
 import { useQuickAction } from "@/lib/store";
@@ -12,17 +13,17 @@ const num = (s: string) => (s.trim() && isFinite(parseFloat(s)) ? parseFloat(s) 
 const int = (s: string) => (s.trim() && isFinite(parseInt(s)) ? parseInt(s) : null);
 
 type SetRow = { weight: string; reps: string; duration: string };
-type Entry = { exerciseId: string | null; name: string; muscle: string | null; trackingType: string; sets: SetRow[] };
+type Entry = { dayId: string | null; exerciseId: string | null; name: string; muscle: string | null; trackingType: string; sets: SetRow[] };
 
 const emptySet = (): SetRow => ({ weight: "", reps: "", duration: "" });
 
 export function LogSession({
-  routines, days, exercises, suggestedDayId,
+  routines, days, exercises, suggestedDayIds,
 }: {
   routines: WorkoutRoutine[];
   days: WorkoutDay[];
   exercises: WorkoutExercise[];
-  suggestedDayId: string | null;
+  suggestedDayIds: string[];
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -31,22 +32,33 @@ export function LogSession({
   useQuickAction("entreno", () => setOpen(true));
 
   const activeRoutine = routines.find((r) => r.active) ?? routines[0] ?? null;
-  const routineDays = days
-    .filter((d) => d.routine_id === activeRoutine?.id)
-    .sort((a, b) => a.day_order - b.day_order);
+  const routineName = (rid: string) => routines.find((r) => r.id === rid)?.name ?? "";
+  // Días disponibles para apilar: activos primero, agrupados por rutina.
+  const orderedDays = [...days].sort((a, b) => {
+    const ra = a.routine_id === activeRoutine?.id ? 0 : 1;
+    const rb = b.routine_id === activeRoutine?.id ? 0 : 1;
+    return ra - rb || a.day_order - b.day_order;
+  });
+
+  const initialDays = suggestedDayIds.length
+    ? suggestedDayIds
+    : orderedDays[0]
+    ? [orderedDays[0].id]
+    : [];
 
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [dayId, setDayId] = useState<string>(suggestedDayId ?? routineDays[0]?.id ?? "");
   const [duration, setDuration] = useState("");
   const [bodyweight, setBodyweight] = useState("");
   const [notes, setNotes] = useState("");
-  const [entries, setEntries] = useState<Entry[]>(() => buildEntries(suggestedDayId ?? routineDays[0]?.id ?? ""));
+  const [selectedDayIds, setSelectedDayIds] = useState<string[]>(initialDays);
+  const [entries, setEntries] = useState<Entry[]>(() => initialDays.flatMap(dayEntries));
 
-  function buildEntries(dId: string): Entry[] {
+  function dayEntries(dId: string): Entry[] {
     return exercises
       .filter((e) => e.day_id === dId)
       .sort((a, b) => a.sort_order - b.sort_order)
       .map((e) => ({
+        dayId: dId,
         exerciseId: e.id,
         name: e.name,
         muscle: e.muscle_group,
@@ -55,9 +67,15 @@ export function LogSession({
       }));
   }
 
-  function selectDay(dId: string) {
-    setDayId(dId);
-    setEntries(buildEntries(dId));
+  function toggleDay(dId: string) {
+    setSelectedDayIds((prev) => {
+      if (prev.includes(dId)) {
+        setEntries((es) => es.filter((e) => e.dayId !== dId));
+        return prev.filter((x) => x !== dId);
+      }
+      setEntries((es) => [...es, ...dayEntries(dId)]);
+      return [...prev, dId];
+    });
   }
 
   function setCell(ei: number, si: number, field: keyof SetRow, val: string) {
@@ -84,7 +102,7 @@ export function LogSession({
     });
   }
   function addCustom() {
-    setEntries((prev) => [...prev, { exerciseId: null, name: "", muscle: null, trackingType: "strength", sets: [emptySet()] }]);
+    setEntries((prev) => [...prev, { dayId: null, exerciseId: null, name: "", muscle: null, trackingType: "strength", sets: [emptySet()] }]);
   }
   function removeEntry(ei: number) {
     setEntries((prev) => prev.filter((_, i) => i !== ei));
@@ -99,26 +117,14 @@ export function LogSession({
     });
   }
 
+  function reset() {
+    setSelectedDayIds(initialDays);
+    setEntries(initialDays.flatMap(dayEntries));
+    setDuration(""); setBodyweight(""); setNotes("");
+  }
+
   async function save() {
-    setSaving(true);
-    const day = routineDays.find((d) => d.id === dayId) ?? null;
-    const { data: sess, error: e1 } = await supabase
-      .from("workout_sessions")
-      .insert({
-        date,
-        routine_id: activeRoutine?.id ?? null,
-        day_id: day?.id ?? null,
-        day_name: day?.name ?? null,
-        duration_minutes: int(duration),
-        bodyweight_kg: num(bodyweight),
-        notes: notes.trim() || null,
-      })
-      .select("id")
-      .single();
-
-    if (e1 || !sess) { setSaving(false); return; }
-
-    const rows = [];
+    const rows: any[] = [];
     for (const e of entries) {
       const name = e.name.trim();
       if (!name) continue;
@@ -127,16 +133,13 @@ export function LogSession({
         const w = num(s.weight);
         const r = int(s.reps);
         const d = int(s.duration);
-
         if (e.trackingType === "timed") {
           if (d == null) continue;
         } else {
           if (w == null && r == null) continue;
         }
-
         setNum++;
         rows.push({
-          session_id: sess.id,
           exercise_id: e.exerciseId,
           exercise_name: name,
           muscle_group: e.muscle,
@@ -145,19 +148,60 @@ export function LogSession({
           reps: e.trackingType !== "timed" ? r : null,
           duration_seconds: e.trackingType === "timed" ? d : null,
           rpe: null,
-        } as any);
+        });
       }
     }
-    if (rows.length) await supabase.from("workout_sets").insert(rows);
+
+    if (rows.length === 0) {
+      toast.error("Captura al menos una serie con peso, reps o tiempo.");
+      return;
+    }
+
+    setSaving(true);
+    const selDays = selectedDayIds.map((id) => days.find((d) => d.id === id)).filter(Boolean) as WorkoutDay[];
+    const dayName = selDays.map((d) => d.name).join(" + ") || null;
+    const routineId = selDays[0]?.routine_id ?? activeRoutine?.id ?? null;
+
+    const { data: sess, error: e1 } = await supabase
+      .from("workout_sessions")
+      .insert({
+        date,
+        routine_id: routineId,
+        day_id: selDays[0]?.id ?? null,
+        day_name: dayName,
+        duration_minutes: int(duration),
+        bodyweight_kg: num(bodyweight),
+        notes: notes.trim() || null,
+      })
+      .select("id")
+      .single();
+
+    if (e1 || !sess) {
+      setSaving(false);
+      toast.error(`No se pudo guardar la sesión: ${e1?.message ?? "error desconocido"}`);
+      return;
+    }
+
+    const { error: e2 } = await supabase
+      .from("workout_sets")
+      .insert(rows.map((r) => ({ ...r, session_id: sess.id })));
+
+    if (e2) {
+      // Evita una sesión huérfana sin series.
+      await supabase.from("workout_sessions").delete().eq("id", sess.id);
+      setSaving(false);
+      toast.error(`No se guardaron las series: ${e2.message}`);
+      return;
+    }
 
     setSaving(false);
     setOpen(false);
-    setDuration(""); setBodyweight(""); setNotes("");
-    setEntries(buildEntries(dayId));
+    toast.success(`Sesión guardada · ${rows.length} series${dayName ? ` · ${dayName}` : ""}`);
+    reset();
     router.refresh();
   }
 
-  const noRoutine = routineDays.length === 0;
+  const noRoutine = days.length === 0;
 
   return (
     <>
@@ -166,20 +210,29 @@ export function LogSession({
       </button>
       {open && (
         <Modal title="Registrar entrenamiento" onClose={() => setOpen(false)} wide>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <Field label="Fecha">
-              <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-            </Field>
-            <Field label="Día de rutina">
-              <select className="input" value={dayId} onChange={(e) => selectDay(e.target.value)}>
-                {routineDays.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-            </Field>
+          <Field label="Fecha">
+            <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ maxWidth: 200 }} />
+          </Field>
+
+          <div style={{ marginTop: 10 }}>
+            <p className="modal-field-label" style={{ marginBottom: 6 }}>Días de esta sesión</p>
+            <div className="gym-day-pick">
+              {orderedDays.map((d) => (
+                <button
+                  key={d.id}
+                  className={`gym-day-chip${selectedDayIds.includes(d.id) ? " on" : ""}`}
+                  onClick={() => toggleDay(d.id)}
+                >
+                  {d.name}
+                  {d.routine_id !== activeRoutine?.id && (
+                    <span className="gym-day-chip-rt">{routineName(d.routine_id)}</span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 6 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 14 }}>
             {entries.map((e, ei) => (
               <div key={ei} className="gym-log-ex">
                 <div className="gym-log-ex-head">
@@ -253,6 +306,9 @@ export function LogSession({
                 </div>
               </div>
             ))}
+            {entries.length === 0 && (
+              <p className="tick">Elige un día arriba o agrega un ejercicio libre.</p>
+            )}
             <button className="btn btn-ghost btn-sm" onClick={addCustom} style={{ alignSelf: "flex-start" }}>
               <Plus size={13} /> Ejercicio libre
             </button>

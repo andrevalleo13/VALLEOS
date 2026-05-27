@@ -36,6 +36,7 @@ type EventBody = {
   location?: string | null;
   color?: string | null;
   allDay?: boolean;
+  recurrence?: string[] | null;
 };
 
 function toRequestBody(body: EventBody): calendar_v3.Schema$Event {
@@ -44,6 +45,7 @@ function toRequestBody(body: EventBody): calendar_v3.Schema$Event {
   if (body.description !== undefined) req.description = body.description ?? "";
   if (body.location !== undefined) req.location = body.location ?? "";
   if (body.color !== undefined) req.colorId = body.color ?? undefined;
+  if (body.recurrence !== undefined) req.recurrence = body.recurrence ?? undefined;
   if (body.start !== undefined && body.end !== undefined) {
     if (body.allDay) {
       req.start = { date: body.start.split("T")[0] };

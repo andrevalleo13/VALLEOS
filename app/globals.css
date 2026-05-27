@@ -3191,6 +3191,70 @@ body {
 .re-ex-row, .re-ex-add { display: flex; align-items: center; gap: 6px; }
 .re-ex-add { margin-top: 4px; padding-top: 10px; border-top: 1px dashed var(--line); }
 
+/* ── Gym · selector de días al registrar ──────────────────────────────── */
+.gym-day-pick { display: flex; flex-wrap: wrap; gap: 7px; }
+.gym-day-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 11px; border-radius: 999px;
+  border: 1px solid var(--line-2); background: var(--bg-card);
+  color: var(--mute); font-size: 12.5px; cursor: pointer;
+  transition: all 0.18s var(--ease);
+}
+.gym-day-chip:hover { color: var(--bone-dim); border-color: var(--glass-bd-2); }
+.gym-day-chip.on { border-color: rgba(201,163,95,0.45); background: rgba(201,163,95,0.13); color: var(--gold); }
+.gym-day-chip-rt { font-family: var(--f-mono); font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mute-2); }
+
+/* ── Gym · horario semanal (editor) ───────────────────────────────────── */
+.gym-sched-edit { display: flex; flex-direction: column; gap: 8px; }
+.gym-sched-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.gym-sched-row:last-child { border-bottom: 0; }
+.gym-sched-wd { width: 92px; flex-shrink: 0; font-size: 13px; color: var(--bone-dim); }
+.gym-sched-assigned { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; flex: 1; }
+.gym-sched-rest { font-size: 12px; color: var(--mute-2); font-style: italic; }
+.gym-sched-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 6px 4px 10px; border-radius: 999px;
+  border: 1px solid rgba(201,163,95,0.4); background: rgba(201,163,95,0.12);
+  color: var(--gold); font-size: 12px;
+}
+.gym-sched-tag button { display: inline-flex; color: var(--mute); padding: 1px; border-radius: 50%; }
+.gym-sched-tag button:hover { color: var(--red); }
+.gym-sched-add { width: auto; min-width: 88px; font-size: 11px; padding: 5px 8px; }
+
+/* ── Gym · strip "Tu semana" ──────────────────────────────────────────── */
+.gym-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+.gym-week-day {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 6px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--bg-card); min-height: 70px;
+}
+.gym-week-day.today { border-color: rgba(201,163,95,0.5); background: rgba(201,163,95,0.07); }
+.gym-week-wd { font-family: var(--f-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--mute); }
+.gym-week-day.today .gym-week-wd { color: var(--gold); }
+.gym-week-tag {
+  font-size: 11px; color: var(--bone-dim); text-align: center; line-height: 1.25;
+  padding: 2px 7px; border-radius: 7px; background: var(--glass-bg); border: 1px solid var(--line-2);
+}
+.gym-week-rest { font-size: 13px; color: var(--mute-2); }
+@media (max-width: 720px) {
+  .gym-week { grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .gym-week-day { padding: 8px 3px; min-height: 60px; }
+  .gym-week-tag { font-size: 9.5px; padding: 2px 4px; }
+}
+
+/* ── Gym · cardio / carrera ───────────────────────────────────────────── */
+.gym-cardio-goal { margin-bottom: 4px; }
+.gym-cardio-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; margin-top: 16px; }
+.gym-cardio-stat { display: flex; flex-direction: column; gap: 3px; }
+.gym-cardio-stat .v { font-family: var(--f-serif); font-size: 24px; color: var(--bone); display: flex; align-items: baseline; gap: 3px; }
+.gym-cardio-stat .v small { font-size: 12px; color: var(--mute); font-family: var(--f-mono); }
+.gym-cardio-stat .l { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mute); font-family: var(--f-mono); }
+.gym-cardio-row {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 13px; border-radius: 11px; border: 1px solid var(--line); background: var(--glass-bg);
+}
+.gym-cardio-emoji { font-size: 15px; }
+
 /* ── Academia · Panamericana ───────────────────────────────────────────── */
 .ac-diff {
   font-family: var(--f-mono);
@@ -3381,6 +3445,125 @@ body {
 .ac-sched-room { font-size: 10px; color: var(--mute); margin-top: 1px; }
 .ac-md p { font-size: 13.5px; color: var(--mute); line-height: 1.55; }
 .ac-md strong { font-weight: 600; }
+
+/* ─── Trayectoria académica (semestres) ──────────────────────────── */
+.ac-traj-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.ac-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 4px;
+  flex-wrap: wrap;
+}
+.ac-meta-tag {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid;
+}
+.ac-meta-tag.ok { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, transparent); }
+.ac-meta-tag.risk { color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, transparent); }
+.ac-meta-edit {
+  border: none;
+  background: transparent;
+  color: var(--mute);
+  cursor: pointer;
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 6px;
+}
+.ac-meta-edit:hover { color: var(--bone); background: var(--glass-bg); }
+.ac-meta-editor {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ac-meta-editor label { display: flex; flex-direction: column; gap: 3px; }
+.ac-meta-editor .input { width: 100px; }
+
+.ac-traj-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  height: 130px;
+  margin: 16px 0 4px;
+  padding-top: 14px;
+}
+.ac-traj-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+.ac-traj-val { font-family: var(--f-mono); font-size: 11px; margin-bottom: 4px; }
+.ac-traj-barwrap { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.ac-traj-bar {
+  width: 70%;
+  max-width: 38px;
+  border-radius: 5px 5px 0 0;
+  min-height: 3px;
+  transition: height 0.4s var(--ease);
+}
+.ac-traj-bar.current { opacity: 0.85; outline: 1.5px dashed var(--gold); outline-offset: 2px; }
+.ac-traj-lbl {
+  font-family: var(--f-mono);
+  font-size: 9.5px;
+  color: var(--mute);
+  margin-top: 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ac-credits { margin: 18px 0 4px; }
+.ac-credit-track {
+  height: 8px;
+  border-radius: 5px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.ac-credit-fill {
+  height: 100%;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--gold-2), var(--gold));
+  transition: width 0.4s var(--ease);
+}
+
+.ac-sem-list { margin-top: 16px; border-top: 1px solid var(--line); }
+.ac-sem-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.ac-sem-row:last-child { border-bottom: none; }
+.ac-sem-term {
+  font-family: var(--f-mono);
+  font-size: 13px;
+  color: var(--gold);
+  width: 28px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.ac-sem-detrow {
+  display: grid;
+  grid-template-columns: 1fr 80px 80px 32px;
+  gap: 8px;
+  align-items: center;
+}
 
 /* ─── Calendar interactions ──────────────────────────────────────── */
 .cal-event-btn {

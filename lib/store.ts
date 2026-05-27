@@ -21,6 +21,7 @@ interface Ajustes {
   sidebarCollapsed: boolean;
   customColors: Record<string, string>;
   sounds: boolean;
+  academia: { targetGpa: number; creditsTarget: number };
 }
 
 interface AppState {
@@ -65,6 +66,7 @@ export const useAppStore = create<AppState>()(
         sidebarCollapsed: false,
         customColors: {},
         sounds: true,
+        academia: { targetGpa: 9.0, creditsTarget: 400 },
       },
 
       setLocked: (v) => set({ locked: v }),
